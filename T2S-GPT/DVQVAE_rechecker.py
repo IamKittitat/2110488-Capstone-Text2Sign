@@ -16,7 +16,7 @@ decoder = DVQVAE_Decoder(latent_dim, output_dim)
 loss_fn = DVQVAELoss(lambda1=1.0, lambda2=0.5, lambda3=1.0, R=12)
 
 X_T = torch.randn(batch_size, T, sign_language_dim)  # batch_size, sequence_length, sign_language_dim
-Z_quantized, D_T_l, S_T, Z_T_l, I_T, codebook_indices, H_T = encoder(X_T)
+Z_quantized, D_T_l, S_T, Z_T_l, I_T, codebook_indices, H_T = encoder(X_T, is_training = True)
 X_re = decoder(Z_quantized, D_T_l, H_T)
 P_Y_given_X_re = torch.rand(batch_size)
 loss = loss_fn(X_T, X_re, Z_T_l, Z_quantized, I_T, T, P_Y_given_X_re)

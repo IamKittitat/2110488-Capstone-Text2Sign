@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from models.positional_encoding import PositionalEncoding
 
 class DVQVAE_Encoder(nn.Module):
-    def __init__(self, sign_language_dim, latent_dim, codebook_size, max_len=5000, dropout=0.1, num_layers = 6):
+    def __init__(self, sign_language_dim, latent_dim, codebook_size, max_len=5000, dropout=0.1, num_layers = 6, decay=0.99):
         super(DVQVAE_Encoder, self).__init__()
         self.embedding = nn.Linear(sign_language_dim, sign_language_dim)
         self.layer_norm = nn.LayerNorm(sign_language_dim)
@@ -23,7 +23,12 @@ class DVQVAE_Encoder(nn.Module):
 
         self.threshold = 1.0
 
-    def forward(self, X_T):
+        # EMA parameters
+        self.ema_decay = decay  # Exponential moving average decay factor
+        self.ema_cluster_size = torch.zeros(codebook_size)  # Track codebook usage
+        self.ema_embeddings = torch.zeros(codebook_size, latent_dim)  # Track EMA for embeddings
+
+    def forward(self, X_T, is_training):
         """
         Arguments:
             x: Tensor, shape ``[batch_size, seq_len , sign_language_dim]``
@@ -34,7 +39,7 @@ class DVQVAE_Encoder(nn.Module):
         I_T = self.compute_information_weights(H_T) # Equation 3
         Z_T_l, D_T_l, S_T = self.downsample(H_T, I_T)  # Equation 4 and 5
 
-        Z_quantized, codebook_indices = self.quantize(Z_T_l)
+        Z_quantized, codebook_indices = self.quantize(Z_T_l, is_training)
         return Z_quantized, D_T_l, S_T, Z_T_l, I_T, codebook_indices, H_T
     
     def compute_information_weights(self, H_T):
@@ -63,12 +68,33 @@ class DVQVAE_Encoder(nn.Module):
         D_T_l = torch.stack(D_T_l, dim=1).to(torch.int) 
         return Z_T_l, D_T_l, S_T
 
-    def quantize(self, z):
+    def quantize(self, z, is_training):
         z_flattened = z.view(-1, z.size(-1))
         codebook_indices = torch.argmin(torch.cdist(z_flattened, self.codebook.weight), dim=-1).view((z.shape[0], z.shape[1]))
         z_q = self.codebook(codebook_indices).view(z.size())
+
+        # EMA Update
+        if is_training:
+            print("EMA")
+            encoding_one_hot = torch.zeros(z_flattened.size(0), self.codebook_size, device=z.device)
+            encoding_one_hot.scatter_(1, codebook_indices.view(-1, 1), 1)
+
+            self.ema_cluster_size = self.ema_decay * self.ema_cluster_size + (1 - self.ema_decay) * encoding_one_hot.sum(0)
+            dw = torch.matmul(encoding_one_hot.t(), z_flattened)
+            self.ema_embeddings = self.ema_decay * self.ema_embeddings + (1 - self.ema_decay) * dw
+
+            n = self.ema_cluster_size.sum()
+            self.ema_cluster_size = (self.ema_cluster_size) / (n + self.codebook_size * 1e-5) * n
+
+            self.codebook.weight.data.copy_(self.ema_embeddings / self.ema_cluster_size.unsqueeze(1))
+
+        # Codebook Reset
+        inactive_codes = (self.ema_cluster_size < 1e-5).nonzero()
+        if inactive_codes.numel() > 0:
+            self.codebook.weight.data[inactive_codes] = torch.randn_like(self.codebook.weight[inactive_codes])
+
         return z_q, codebook_indices
-    
+
 
 class DVQVAE_Decoder(nn.Module):
     def __init__(self, latent_dim, output_dim, max_len=5000, dropout=0.1, num_layers = 6):

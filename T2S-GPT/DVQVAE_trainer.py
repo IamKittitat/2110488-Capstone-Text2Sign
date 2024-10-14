@@ -40,7 +40,7 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
             Y = batch['spoken_language_text'].to(device)       # Target: text sequence
 
             # Forward pass through DVQ-VAE
-            Z_quantized, D_T_l, S_T, Z_T_l, I_T, codebook_indices, H_T = encoder(X_T)
+            Z_quantized, D_T_l, S_T, Z_T_l, I_T, codebook_indices, H_T = encoder(X_T, is_training=True)
             X_re = decoder(Z_quantized, D_T_l, H_T)
 
             # For demonstration, replace this with actual values
@@ -70,7 +70,6 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
     return loss_list
 
 def plot_loss(loss_list):
-    # Plot loss
     plot_dir = '../visualization'
     plot_file = os.path.join(plot_dir, 'DVQVAE_plot.png')
     os.makedirs(plot_dir, exist_ok=True)
@@ -84,7 +83,7 @@ def plot_loss(loss_list):
     plt.close()
 
 def main():
-    loss_list = train_dvqvae_model(num_epochs=10, batch_size=32)
+    loss_list = train_dvqvae_model(num_epochs=20, batch_size=32)
     plot_loss(loss_list)
 
 if __name__ == "__main__":
