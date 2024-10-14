@@ -1,3 +1,4 @@
+import os
 import matplotlib.pyplot as plt
 import torch
 import torch.optim as optim
@@ -14,7 +15,7 @@ latent_dim = 512
 vocab_size = 500
 codebook_size = 1024
 output_dim = sign_language_dim
-num_epochs = 20
+num_epochs = 10
 text_length = 10
 
 dataset = RandomDataset(T, sign_language_dim, output_dim, vocab_size, num_samples = 30)
@@ -73,5 +74,15 @@ torch.save({
     'optimizer_state_dict': optimizer.state_dict(),
 }, 'dvqvae_model.pth')
 
+# Plot loss
+plot_dir = '../visualization'
+plot_file = os.path.join(plot_dir, 'DVQVAE_plot.png')
+os.makedirs(plot_dir, exist_ok=True)
 indices = list(range(len(loss_list)))
 plt.plot(indices, loss_list, linestyle='--', color='b', marker='x')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.title('DVQ-VAE Training Loss')
+plt.grid()
+plt.savefig(plot_file)
+plt.close()
