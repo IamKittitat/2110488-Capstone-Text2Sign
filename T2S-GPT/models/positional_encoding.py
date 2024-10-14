@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-
 # https://stackoverflow.com/questions/77444485/using-positional-encoding-in-pytorch
 class PositionalEncoding(nn.Module):
     def __init__(self, latent_dim: int, dropout: float = 0.1, max_len: int = 5000):
