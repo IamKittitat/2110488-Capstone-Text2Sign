@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from models.positional_encoding import PositionalEncoding
 
 class DVQVAE_Encoder(nn.Module):
-    def __init__(self, sign_language_dim, latent_dim, codebook_size, max_len=5000, dropout=0.1, num_layers = 6, decay=0.99):
+    def __init__(self, sign_language_dim, latent_dim, codebook_size, max_len=5000, dropout=0.1, num_layers = 6, decay=0.5):
         super(DVQVAE_Encoder, self).__init__()
         self.embedding = nn.Linear(sign_language_dim, sign_language_dim)
         self.layer_norm = nn.LayerNorm(sign_language_dim)
@@ -85,13 +85,12 @@ class DVQVAE_Encoder(nn.Module):
 
             n = self.ema_cluster_size.sum()
             self.ema_cluster_size = (self.ema_cluster_size) / (n + self.codebook_size * 1e-5) * n
-
             self.codebook.weight.data.copy_(self.ema_embeddings / self.ema_cluster_size.unsqueeze(1))
-
-        # Codebook Reset
-        inactive_codes = (self.ema_cluster_size < 1e-5).nonzero()
-        if inactive_codes.numel() > 0:
-            self.codebook.weight.data[inactive_codes] = torch.randn_like(self.codebook.weight[inactive_codes])
+            
+            # Codebook Reset
+            inactive_codes = (self.ema_cluster_size < 1e-5).nonzero()
+            if inactive_codes.numel() > 0:
+                self.codebook.weight.data[inactive_codes] = torch.randn_like(self.codebook.weight[inactive_codes])
 
         return z_q, codebook_indices
 
@@ -137,7 +136,7 @@ class DVQVAELoss(nn.Module):
         v_full[:, -1, :] = x[:, -1, :]
         return v_full
 
-    def forward(self, X_T, X_re, Z_T_l, Z_quantized, I_T, T, P_Y_given_X_re):
+    def forward(self, X_T, X_re, Z_T_l, Z_quantized, I_T, T, P_Y_given_X_re, loss_path):
         # Reconstruction Loss (Eq. 8)
         L_X_re = self.smooth_l1_loss(X_T, X_re)
         L_re = L_X_re + self.smooth_l1_loss(self.velocity(X_T), self.velocity(X_re))
@@ -157,7 +156,7 @@ class DVQVAELoss(nn.Module):
         L_total = L_vq + self.lambda2 * L_budget + self.lambda3 * L_slt
 
         # Append loss into file
-        with open("./data/loss.txt", "a") as f:
+        with open(loss_path, "a") as f:
             f.write(f"{L_X_re},{L_vq},{L_budget},{L_slt},{L_total}\n")
 
         return L_total
