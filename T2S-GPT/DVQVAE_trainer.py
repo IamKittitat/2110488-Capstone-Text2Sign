@@ -46,7 +46,7 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
             X_re = decoder(Z_quantized, D_T_l, H_T)
 
             # For demonstration, replace this with actual values
-            P_Y_given_X_re = torch.rand(batch_size, output_dim, T).to(device)
+            P_Y_given_X_re = torch.ones(batch_size, output_dim, T).to(device)
 
             loss = loss_fn(X_T, X_re, Z_T_l, Z_quantized, I_T, T, P_Y_given_X_re)
 
@@ -69,7 +69,7 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
         'optimizer_state_dict': optimizer.state_dict(),
     }, 'dvqvae_model.pth')
 
-    return loss_list
+    return loss_list, X_T, X_re
 
 def plot_loss(loss_file):
     L_X_re_list = []
@@ -112,8 +112,11 @@ def plot_loss(loss_file):
 
 
 def main():
-    loss_list = train_dvqvae_model(num_epochs=20, batch_size=32, codebook_size=64)
+    loss_list, X_T, X_re = train_dvqvae_model(num_epochs=100, batch_size=32, codebook_size=64)
     plot_loss('./data/loss.txt')
+    # Save X_T, X_re
+    torch.save(X_T, 'X_T.pth')
+    torch.save(X_re, 'X_re.pth')
 
 if __name__ == "__main__":
     main()

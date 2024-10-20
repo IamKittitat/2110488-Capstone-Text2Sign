@@ -44,7 +44,7 @@ class DVQVAE_Encoder(nn.Module):
     
     def compute_information_weights(self, H_T):
         H_residual = H_T
-        H = self.relu(self.W2(H_T) + H_residual)  # Skip connection
+        H = self.relu(self.W2(H_T)) + H_residual  # Skip connection
         I_T = self.sigmoid(self.W3(H))  # I: [batch_size, seq_len, 1]
         I_T = I_T.squeeze(-1)  # I: [batch_size, seq_len]
         return I_T
