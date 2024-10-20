@@ -18,10 +18,9 @@ encoder = DVQVAE_Encoder(sign_language_dim, latent_dim, codebook_size)
 
 
 X_T = torch.randn(batch_size, T, sign_language_dim)  # batch_size, sequence_length, sign_language_dim
-Z_quantized, D_T_l, S_T, Z_T_l, I_T, codebook_indices, H_T = encoder(X_T)
+Z_quantized, D_T_l, S_T, Z_T_l, I_T, codebook_indices, H_T = encoder(X_T, is_training = False)
 Y = torch.randint(0, vocab_size, (batch_size, 10))
 print(f"Y: {Y.shape}, codebook_indices: {codebook_indices.shape}, D_T_l: {D_T_l.shape}")
 S_T_pred, S_T_expected, H_code, code_transformer_logits, D_T_l_pred, D_T_l_expected, duration_transformer_logits = model(Y, codebook_indices, D_T_l)
 loss = t2sgpt_loss(code_transformer_logits, S_T_expected, D_T_l_pred, D_T_l_expected)
 print(f"Loss: {loss}")
-

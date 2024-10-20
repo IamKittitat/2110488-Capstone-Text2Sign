@@ -7,12 +7,13 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from models.DVQVAE import DVQVAE_Encoder, DVQVAE_Decoder, DVQVAELoss
 from dataset.random_dataset import RandomDataset
+from utils.file_utils import get_unique_path
 
 def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
                        T=100, latent_dim=512, vocab_size=500, codebook_size=1024, 
                        output_dim=512):
     # Prepare dataset and data loader
-    dataset = RandomDataset(T, sign_language_dim, output_dim, vocab_size, num_samples=30)
+    dataset = RandomDataset(T, sign_language_dim, output_dim, vocab_size, num_samples=5)
     train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     # Initialize models, loss function, optimizer, and scheduler
@@ -28,8 +29,8 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
     decoder.to(device)
 
     loss_list = []
-    if os.path.exists('./data/loss.txt'):
-        os.remove('./data/loss.txt')
+    loss_path = get_unique_path('./data/DVQVAE_loss.txt')
+    model_path = get_unique_path('./trained_model/dvqvae_model.pth')
 
     # Training loop
     for epoch in range(num_epochs):
@@ -48,7 +49,7 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
             # For demonstration, replace this with actual values
             P_Y_given_X_re = torch.ones(batch_size, output_dim, T).to(device)
 
-            loss = loss_fn(X_T, X_re, Z_T_l, Z_quantized, I_T, T, P_Y_given_X_re)
+            loss = loss_fn(X_T, X_re, Z_T_l, Z_quantized, I_T, T, P_Y_given_X_re, loss_path)
 
             # Back Propagation
             optimizer.zero_grad()
@@ -67,9 +68,9 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
         'encoder_state_dict': encoder.state_dict(),
         'decoder_state_dict': decoder.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
-    }, 'dvqvae_model.pth')
+    }, model_path)
 
-    return loss_list, X_T, X_re
+    return loss_list, X_T, X_re, loss_path
 
 def plot_loss(loss_file):
     L_X_re_list = []
@@ -112,11 +113,8 @@ def plot_loss(loss_file):
 
 
 def main():
-    loss_list, X_T, X_re = train_dvqvae_model(num_epochs=100, batch_size=32, codebook_size=64)
-    plot_loss('./data/loss.txt')
-    # Save X_T, X_re
-    torch.save(X_T, 'X_T.pth')
-    torch.save(X_re, 'X_re.pth')
+    loss_list, X_T, X_re, loss_path = train_dvqvae_model(num_epochs=200, batch_size=5, codebook_size=64)
+    plot_loss(loss_path)
 
 if __name__ == "__main__":
     main()
