@@ -139,7 +139,8 @@ class DVQVAELoss(nn.Module):
 
     def forward(self, X_T, X_re, Z_T_l, Z_quantized, I_T, T, P_Y_given_X_re):
         # Reconstruction Loss (Eq. 8)
-        L_re = self.smooth_l1_loss(X_T, X_re) + self.smooth_l1_loss(self.velocity(X_T), self.velocity(X_re))
+        L_X_re = self.smooth_l1_loss(X_T, X_re)
+        L_re = L_X_re + self.smooth_l1_loss(self.velocity(X_T), self.velocity(X_re))
     
         # Embedding Loss & Commitment Loss & vq Loss (Eq. 7)
         L_embed = torch.mean((Z_T_l - Z_quantized.detach()) ** 2)
@@ -154,5 +155,9 @@ class DVQVAELoss(nn.Module):
 
         # Final Loss (Eq. 11)
         L_total = L_vq + self.lambda2 * L_budget + self.lambda3 * L_slt
+
+        # Append loss into file
+        with open("./data/loss.txt", "a") as f:
+            f.write(f"{L_X_re},{L_vq},{L_budget},{L_slt},{L_total}\n")
 
         return L_total

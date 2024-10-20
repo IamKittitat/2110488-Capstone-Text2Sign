@@ -28,6 +28,8 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
     decoder.to(device)
 
     loss_list = []
+    if os.path.exists('./data/loss.txt'):
+        os.remove('./data/loss.txt')
 
     # Training loop
     for epoch in range(num_epochs):
@@ -69,22 +71,49 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
 
     return loss_list
 
-def plot_loss(loss_list):
-    plot_dir = '../visualization'
+def plot_loss(loss_file):
+    L_X_re_list = []
+    L_vq_list = []
+    L_budget_list = []
+    L_slt_list = []
+    L_total_list = []
+    
+    with open(loss_file, 'r') as f:
+        for line in f:
+            # Split the line into values
+            values = line.strip().split(',')
+            L_X_re, L_vq, L_budget, L_slt, L_total = map(float, values)
+            L_X_re_list.append(L_X_re)
+            L_vq_list.append(L_vq)
+            L_budget_list.append(L_budget)
+            L_slt_list.append(L_slt)
+            L_total_list.append(L_total)
+    
+    iterations = list(range(1, len(L_X_re_list) + 1))
+    
+    plt.figure(figsize=(10, 6))
+    plt.ylim(0,10)
+    plt.plot(iterations, L_X_re_list, label='L_X_re')
+    plt.plot(iterations, L_vq_list, label='L_vq')
+    plt.plot(iterations, L_budget_list, label='L_budget')
+    plt.plot(iterations, L_slt_list, label='L_slt')
+    plt.plot(iterations, L_total_list, label='L_total')
+    
+    plt.title('DVQ-VAE Training Loss Components')
+    plt.grid(True)
+    plt.legend(loc='best')
+    
+    plot_dir = './data'
     plot_file = os.path.join(plot_dir, 'DVQVAE_plot.png')
     os.makedirs(plot_dir, exist_ok=True)
-    indices = list(range(len(loss_list)))
-    plt.plot(indices, loss_list, linestyle='--', color='b', marker='x')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.title('DVQ-VAE Training Loss')
-    plt.grid()
     plt.savefig(plot_file)
     plt.close()
+    
+
 
 def main():
-    loss_list = train_dvqvae_model(num_epochs=20, batch_size=32)
-    plot_loss(loss_list)
+    loss_list = train_dvqvae_model(num_epochs=20, batch_size=32, codebook_size=64)
+    plot_loss('./data/loss.txt')
 
 if __name__ == "__main__":
     main()
