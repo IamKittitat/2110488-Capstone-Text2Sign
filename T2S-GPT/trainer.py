@@ -71,7 +71,7 @@ def train_both_model(num_epochs=10, batch_size=32, sign_language_dim=512,
 
     ##############################################################################################################################
     # T2S-GPT 
-    model = T2S_GPT(vocab_size=vocab_size, codebook_size=codebook_size, max_duration=100, device=device).to(device)
+    model = T2S_GPT(vocab_size=vocab_size, embed_dim=64, codebook_size=codebook_size, max_duration=100, device=device).to(device)
     t2sgpt_loss = T2SGPTLoss()
     optimizer = optim.AdamW(model.parameters(), lr=1e-4)
     checkpoint = torch.load(model_path)
@@ -147,9 +147,8 @@ def plot_loss(loss_file):
     plt.close()
     
 
-
 def main():
-    loss_path, t2sgpt_loss_path = train_both_model(num_epochs=200, batch_size=5, codebook_size=64)
+    loss_path, t2sgpt_loss_path = train_both_model(num_epochs=50, batch_size=5, codebook_size=64)
     plot_loss(loss_path)
 
 if __name__ == "__main__":

@@ -93,7 +93,9 @@ class DVQVAE_Encoder(nn.Module):
                 self.codebook.weight.data[inactive_codes] = torch.randn_like(self.codebook.weight[inactive_codes])
 
         return z_q, codebook_indices
-
+    
+    def get_codebook(self, S):
+        return self.codebook(S)
 
 class DVQVAE_Decoder(nn.Module):
     def __init__(self, latent_dim, output_dim, max_len=5000, dropout=0.1, num_layers = 6):
@@ -107,6 +109,11 @@ class DVQVAE_Decoder(nn.Module):
     def forward(self, Z_quantized, D_T_l, H_T):
         X_hat = self.positional_encoding(self.length_regulator(Z_quantized, D_T_l))
         X_re = self.transformer_decoder(X_hat, H_T)
+        return X_re
+
+    def generate(self, Z_quantized, D_T_l):
+        X_hat = self.positional_encoding(self.length_regulator(Z_quantized, D_T_l))
+        X_re = self.transformer_decoder(X_hat, X_hat)
         return X_re
 
     def length_regulator(self, z_q, durations):

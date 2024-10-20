@@ -8,6 +8,8 @@ class T2S_GPT(nn.Module):
         super(T2S_GPT, self).__init__()
         
         self.device = device
+        self.embed_dim = embed_dim
+        self.codebook_size = codebook_size
         self.text_embedding = nn.Embedding(vocab_size, embed_dim) 
         self.code_embedding = nn.Embedding(codebook_size, embed_dim)
         self.duration_embedding = nn.Embedding(max_duration + 1, embed_dim)
@@ -32,12 +34,13 @@ class T2S_GPT(nn.Module):
             batch_first=True,
         )
     
-    def forward(self, Y, S_T, D_T_l, embed_dim = 1024):
+    def forward(self, Y, S_T, D_T_l, SOS_TOKEN = 11, EOS_TOKEN = 12):
         # Code Transformer: Y, S_T -> S_T_pred
         # TODO: Do something with SOS_TOKEN, EOS_TOKEN?
-        start_token = torch.tensor([11]).repeat(S_T.size(0), 1)
-        S_T_with_start = torch.cat((start_token, S_T), dim=1)
-        D_T_l_with_start = torch.cat((start_token, D_T_l), dim=1)
+        start_token = torch.tensor([SOS_TOKEN]).repeat(S_T.size(0), 1)
+        end_token = torch.tensor([EOS_TOKEN]).repeat(S_T.size(0), 1)
+        S_T_with_start = torch.cat((start_token, S_T, end_token), dim=1)
+        D_T_l_with_start = torch.cat((start_token, D_T_l, end_token), dim=1)
 
         Y_embed = self.text_embedding(Y)
         S_T_embed = self.code_embedding(S_T_with_start)
@@ -47,7 +50,7 @@ class T2S_GPT(nn.Module):
         tgt_mask = self.get_tgt_mask(sequence_length).to(self.device)
         
         H_code = self.code_transformer(Y_embed, S_T_input, tgt_mask=tgt_mask)
-        code_transformer_logits = nn.Linear(embed_dim, embed_dim)(H_code)
+        code_transformer_logits = nn.Linear(self.embed_dim, self.embed_dim)(H_code)
         S_T_pred = torch.argmax(nn.Softmax(dim=2)(code_transformer_logits), dim = 2)
         # Duration Transformer: D_T_l, S_T -> D_T_l_pred ??
         D_T_l_embed = self.duration_embedding(D_T_l_with_start)
@@ -55,20 +58,44 @@ class T2S_GPT(nn.Module):
         D_T_l_expected = D_T_l_with_start[:, 1:]
         sequence_length = D_T_l_input.size(1)
         tgt_mask = self.get_tgt_mask(sequence_length).to(self.device)
-        # TODO: Recheck this
-        Ny = Y_embed.size(1)
-        l = S_T_input.size(1)//D_T_l_input.size(1)
-        # print(f"S_T_pred: {S_T_pred.shape}, S_T_expected: {S_T_expected.shape}, H_code: {H_code.shape}")
-        # print(f"H_code[:, Ny: Ny + l - 1]: {H_code[:, Ny: Ny + l - 1].shape}, S_T_pred[:, : l + 1]: {S_T_pred[:, : l + 1].shape}")
-        # H_dur = H_code[:, Ny: Ny + l - 1] + S_T_pred[:, : l + 1]
+        # TODO: Recheck this (EQ. 13)
         H_dur = H_code
-        duration_transformer_logits = self.duration_transformer(H_dur, D_T_l_input, tgt_mask=tgt_mask)
-        D_T_l_pred = torch.argmax(nn.Softmax(dim=2)(nn.Linear(embed_dim, D_T_l.shape[-1])(duration_transformer_logits)), dim = 2)
-        # print(f"D_T_l_embed: {D_T_l_embed.shape}, D_T_l_input: {D_T_l_input.shape}, D_T_l_expected: {D_T_l_expected.shape}, D_T_l_pred: {D_T_l_pred.shape}")
+        output_dur = self.duration_transformer(H_dur, D_T_l_input, tgt_mask=tgt_mask)
+        duration_transformer_logits = nn.Linear(self.embed_dim, self.embed_dim)(output_dur)
+        D_T_l_pred = torch.argmax(nn.Softmax(dim=2)(duration_transformer_logits), dim = 2)
 
         return S_T_pred, S_T_expected, H_code, code_transformer_logits, D_T_l_pred, D_T_l_expected, duration_transformer_logits
 
-    
+    def generate(self, Y, max_length, SOS_TOKEN, EOS_TOKEN):
+        self.eval()
+        with torch.no_grad():
+            Y_embed = self.text_embedding(Y)
+
+            S_T = torch.full((Y.size(0), 1), SOS_TOKEN, dtype=torch.long, device=self.device)
+            D_T_l = torch.full((Y.size(0), 1), SOS_TOKEN, dtype=torch.long, device=self.device)  
+
+            new_token = S_T
+            new_duration = D_T_l
+
+            for _ in range(max_length):
+                S_T_embed = self.code_embedding(new_token)
+                H_code = self.code_transformer(Y_embed, S_T_embed)
+                code_transformer_logits = nn.Linear(self.embed_dim, self.embed_dim)(H_code)
+                next_token = torch.argmax(nn.Softmax(dim=2)(code_transformer_logits), dim=2, keepdim=True).squeeze(dim=2)
+                S_T = torch.cat((S_T, next_token), dim=1)
+                
+                D_T_l_embed = self.duration_embedding(new_duration)
+                output_dur = self.duration_transformer(H_code, D_T_l_embed)
+                duration_transformer_logits = nn.Linear(self.embed_dim, self.embed_dim)(output_dur)
+                next_duration = torch.argmax(nn.Softmax(dim=2)(duration_transformer_logits), dim=2, keepdim=True).squeeze(dim=2)
+                D_T_l = torch.cat((D_T_l, next_duration), dim=1)
+
+                if ((next_token == EOS_TOKEN).all() | (next_duration == EOS_TOKEN).all()):
+                    break
+
+        return S_T, D_T_l
+
+
     def get_tgt_mask(self, size):
         # Generates a squere matrix where each row allows words to be seen
         mask = torch.tril(torch.ones(size, size) == 1) # Lower triangular matrix
@@ -85,7 +112,7 @@ class T2SGPTLoss(nn.Module):
     def __init__(self):
         super(T2SGPTLoss, self).__init__()
 
-    def forward(self, code_transformer_logits, S_T_expected, D_T_l_pred, D_T_l_expected, loss_path):
+    def forward(self, code_transformer_logits, S_T_expected, D_T_l_pred, D_T_l_expected, loss_path = None):
         L_code = F.cross_entropy(code_transformer_logits.view(-1, code_transformer_logits.size(-1)), S_T_expected.reshape(-1))
 
         print("D_T_l", D_T_l_pred.shape, D_T_l_expected.shape)
@@ -94,7 +121,8 @@ class T2SGPTLoss(nn.Module):
         L_total = L_code + L_duration
 
         # Append loss into file
-        with open(loss_path, "a") as f:
-            f.write(f"{L_code},{L_duration},{L_total}\n")
+        if(loss_path is not None):
+            with open(loss_path, "a") as f:
+                f.write(f"{L_code},{L_duration},{L_total}\n")
 
         return L_total
