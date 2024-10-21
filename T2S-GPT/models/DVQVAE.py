@@ -143,7 +143,7 @@ class DVQVAELoss(nn.Module):
         v_full[:, -1, :] = x[:, -1, :]
         return v_full
 
-    def forward(self, X_T, X_re, Z_T_l, Z_quantized, I_T, T, P_Y_given_X_re, loss_path):
+    def forward(self, X_T, X_re, Z_T_l, Z_quantized, I_T, T, P_Y_given_X_re, loss_path = None):
         # Reconstruction Loss (Eq. 8)
         L_X_re = self.smooth_l1_loss(X_T, X_re)
         L_re = L_X_re + self.smooth_l1_loss(self.velocity(X_T), self.velocity(X_re))
@@ -163,7 +163,8 @@ class DVQVAELoss(nn.Module):
         L_total = L_vq + self.lambda2 * L_budget + self.lambda3 * L_slt
 
         # Append loss into file
-        with open(loss_path, "a") as f:
-            f.write(f"{L_X_re},{L_vq},{L_budget},{L_slt},{L_total}\n")
+        if(loss_path is not None):
+            with open(loss_path, "a") as f:
+                f.write(f"{L_X_re},{L_vq},{L_budget},{L_slt},{L_total}\n")
 
         return L_total
