@@ -1,3 +1,4 @@
+# T2s-GPT/trainer.py
 import os
 import matplotlib.pyplot as plt
 import torch
@@ -8,13 +9,19 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from models.DVQVAE import DVQVAE_Encoder, DVQVAE_Decoder, DVQVAELoss
 from models.T2S_GPT import T2S_GPT, T2SGPTLoss
 from dataset.random_dataset import RandomDataset
+from dataset.phoenix_dataset import SignLanguageDataset
 from utils.file_utils import get_unique_path
+from utils.pad_seq import pad_collate_fn
 
 def train_both_model(num_epochs=10, batch_size=32, sign_language_dim=512,
                        T=100, latent_dim=512, vocab_size=500, codebook_size=1024, 
                        output_dim=512):
-    dataset = RandomDataset(T, sign_language_dim, output_dim, vocab_size, num_samples=5)
-    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    ## RandomDataset
+    # dataset = RandomDataset(T, sign_language_dim, output_dim, vocab_size, num_samples=5)
+    # train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    ## SignLanguageDataset
+    dataset = SignLanguageDataset()
+    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
 
     encoder = DVQVAE_Encoder(sign_language_dim, latent_dim, codebook_size)
     decoder = DVQVAE_Decoder(latent_dim, output_dim)

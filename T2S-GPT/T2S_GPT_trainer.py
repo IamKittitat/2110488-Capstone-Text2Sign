@@ -1,11 +1,14 @@
+# T2s-GPT/T2S_GPT_trainer.py
 import os
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from dataset.random_dataset import RandomDataset
+from dataset.phoenix_dataset import SignLanguageDataset
 from models.T2S_GPT import T2S_GPT, T2SGPTLoss
 from models.DVQVAE import DVQVAE_Encoder
 from utils.file_utils import get_unique_path
+from utils.pad_seq import pad_collate_fn
 
 def train_t2s_gpt_model(epochs=10, batch_size=32, learning_rate=1e-4,
                          T=100, vocab_size=500, codebook_size=1024,
@@ -15,8 +18,12 @@ def train_t2s_gpt_model(epochs=10, batch_size=32, learning_rate=1e-4,
     encoder = DVQVAE_Encoder(sign_language_dim, latent_dim, codebook_size).to(device)
     model = T2S_GPT(vocab_size=vocab_size, codebook_size=codebook_size, max_duration=100, device=device).to(device)
     t2sgpt_loss = T2SGPTLoss()
-    dataset = RandomDataset(T, sign_language_dim, sign_language_dim, vocab_size, num_samples=30)
-    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    ## RandomDataset
+    # dataset = RandomDataset(T, sign_language_dim, output_dim, vocab_size, num_samples=5)
+    # train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    ## SignLanguageDataset
+    dataset = SignLanguageDataset()
+    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
     
     optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 
