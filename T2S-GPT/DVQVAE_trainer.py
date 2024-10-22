@@ -120,7 +120,7 @@ def plot_loss(loss_file):
 
 
 def main():
-    loss_list, X_T, X_re, loss_path = train_dvqvae_model(num_epochs=200, batch_size=5, codebook_size=64)
+    loss_list, X_T, X_re, loss_path = train_dvqvae_model(num_epochs=20, batch_size=5, codebook_size=64, sign_language_dim=150)
     plot_loss(loss_path)
 
 if __name__ == "__main__":

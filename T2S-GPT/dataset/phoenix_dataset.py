@@ -1,12 +1,13 @@
 # T2s-GPT/dataset/pheonix_dataset.py
 import torch
+import torch.nn.functional as F
 from torch.utils.data import Dataset
 from torchtext.vocab import build_vocab_from_iterator
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class SignLanguageDataset(Dataset):
-    def __init__(self, skel_file='T2S-GPT/data/alldata/train.skels', text_file='T2S-GPT/data/alldata/train.txt', vocab=None, seq_length=200, text_length=30, sign_language_dim=150, window_size=16):
+    def __init__(self, skel_file='T2S-GPT/data/sampledata/train.skels', text_file='T2S-GPT/data/sampledata/train.txt', vocab=None, seq_length=200, text_length=30, sign_language_dim=150, window_size=16):
         self.seq_length = seq_length
         self.text_length = text_length
         self.sign_language_dim = sign_language_dim
@@ -47,12 +48,20 @@ class SignLanguageDataset(Dataset):
                 yield text
         vocab = build_vocab_from_iterator(yield_tokens(text_data))
         return vocab
+    
+    def preprocess_data(X_T):
+        # If the dimension is [batch_size, seq_len, 150] and you want to pad it to [batch_size, seq_len, 512]
+        padded_X_T = F.pad(X_T, (0, 512 - X_T.size(-1)), "constant", 0)  # Pad the last dimension (150 to 512)
+        
+        # padded_X_T will now have shape [batch_size, seq_len, 512]
+        return padded_X_T
 
     def __len__(self):
         return len(self.sign_language_data)
 
     def __getitem__(self, idx):
         # Get skeleton sequence with window size
+        print(0, self.sign_language_data[idx].shape[0] - self.window_size)
         start_index = torch.randint(0, self.sign_language_data[idx].shape[0] - self.window_size, (1,)).item()
         end_index = start_index + self.window_size
         sign_language_sequence = self.sign_language_data[idx][start_index:end_index]
@@ -65,3 +74,60 @@ class SignLanguageDataset(Dataset):
             'sign_language_sequence': sign_language_sequence.to(device),
             'spoken_language_text': spoken_language_tensor.to(device)
         }
+
+    # def __getitem__(self, idx):
+    #     # Get the skeleton sequence
+    #     sign_language_sequence = self.sign_language_data[idx]
+
+    #     sequence_length = sign_language_sequence.shape[0]
+
+    #     # Check if the sequence is shorter than the window size
+    #     if sequence_length <= self.window_size:
+    #         # If too short, pad along the sequence dimension to match the window size
+    #         padding_size = self.window_size - sequence_length
+    #         sign_language_sequence = F.pad(sign_language_sequence, (0, 0, 0, padding_size), "constant", 0)
+    #     else:
+    #         # Randomly select a start index and crop the sequence to the window size
+    #         start_index = torch.randint(0, sequence_length - self.window_size + 1, (1,)).item()  # Ensure valid range
+    #         end_index = start_index + self.window_size
+    #         sign_language_sequence = sign_language_sequence[start_index:end_index]
+
+    #     # Apply padding to the last dimension (from 150 to 512)
+    #     sign_language_sequence = F.pad(sign_language_sequence, (0, 512 - sign_language_sequence.size(-1)), "constant", 0)
+
+    #     # Get the corresponding spoken language text and convert it to indices
+    #     spoken_language_text = self.text_data[idx]
+    #     spoken_language_tensor = torch.tensor([self.vocab[word] for word in spoken_language_text[:self.text_length]], dtype=torch.long)
+
+    #     return {
+    #         'sign_language_sequence': sign_language_sequence.to(device),  # Now padded to [window_size, 512]
+    #         'spoken_language_text': spoken_language_tensor.to(device)
+    #     }
+
+    # def __getitem__(self, idx):
+    #     # Get skeleton sequence with window size
+    #     sequence_length = self.sign_language_data[idx].shape[0]
+        
+    #     if sequence_length <= self.window_size:
+    #         # If the sequence is shorter than or equal to the window size, use the whole sequence
+    #         sign_language_sequence = self.sign_language_data[idx]
+            
+    #         # Optionally, you might want to pad this sequence to the desired length (e.g., 512)
+    #         sign_language_sequence = F.pad(sign_language_sequence, (0, 512 - sign_language_sequence.size(-1)), "constant", 0)
+    #     else:
+    #         # Randomly select a start index
+    #         start_index = torch.randint(0, sequence_length - self.window_size + 1, (1,)).item()  # Ensure valid range
+    #         end_index = start_index + self.window_size
+    #         sign_language_sequence = self.sign_language_data[idx][start_index:end_index]
+
+    #         # Apply padding to the last dimension (from 150 to 512)
+    #         sign_language_sequence = F.pad(sign_language_sequence, (0, 512 - sign_language_sequence.size(-1)), "constant", 0)
+
+    #     # Get the corresponding spoken language text and convert to indices
+    #     spoken_language_text = self.text_data[idx]
+    #     spoken_language_tensor = torch.tensor([self.vocab[word] for word in spoken_language_text[:self.text_length]], dtype=torch.long)
+
+    #     return {
+    #         'sign_language_sequence': sign_language_sequence.to(device),
+    #         'spoken_language_text': spoken_language_tensor.to(device)
+    #     }

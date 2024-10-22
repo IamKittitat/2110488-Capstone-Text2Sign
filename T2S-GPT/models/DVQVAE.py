@@ -1,3 +1,4 @@
+# T2s-GPT/models/DVQVAE.py
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -6,10 +7,10 @@ from models.positional_encoding import PositionalEncoding
 class DVQVAE_Encoder(nn.Module):
     def __init__(self, sign_language_dim, latent_dim, codebook_size, max_len=5000, dropout=0.1, num_layers = 6, decay=0.5):
         super(DVQVAE_Encoder, self).__init__()
-        self.embedding = nn.Linear(sign_language_dim, sign_language_dim)
-        self.layer_norm = nn.LayerNorm(sign_language_dim)
+        self.embedding = nn.Linear(sign_language_dim, latent_dim)
+        self.layer_norm = nn.LayerNorm(latent_dim)
         self.relu = nn.ReLU()
-        self.positional_encoding = PositionalEncoding(sign_language_dim, dropout, max_len)
+        self.positional_encoding = PositionalEncoding(latent_dim, dropout, max_len)
         self.transformer_encoder = nn.TransformerEncoder(
             nn.TransformerEncoderLayer(d_model=latent_dim, nhead=8, dim_feedforward=2048, batch_first=True), 
             num_layers = num_layers
@@ -98,17 +99,18 @@ class DVQVAE_Encoder(nn.Module):
         return self.codebook(S)
 
 class DVQVAE_Decoder(nn.Module):
-    def __init__(self, latent_dim, output_dim, max_len=5000, dropout=0.1, num_layers = 6):
+    def __init__(self, latent_dim, output_dim, sign_language_dim = 150, max_len=5000, dropout=0.1, num_layers = 6):
         super(DVQVAE_Decoder, self).__init__()
         self.positional_encoding = PositionalEncoding(latent_dim, dropout, max_len) 
         self.transformer_decoder = nn.TransformerDecoder(
             nn.TransformerDecoderLayer(d_model=latent_dim, nhead=8, dim_feedforward=2048, batch_first=True), 
             num_layers= num_layers
         )
+        self.embedding = nn.Linear(latent_dim, sign_language_dim)
 
     def forward(self, Z_quantized, D_T_l, H_T):
         X_hat = self.positional_encoding(self.length_regulator(Z_quantized, D_T_l))
-        X_re = self.transformer_decoder(X_hat, H_T)
+        X_re = self.embedding(self.transformer_decoder(X_hat, H_T))
         return X_re
 
     def generate(self, Z_quantized, D_T_l):

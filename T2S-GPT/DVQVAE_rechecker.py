@@ -1,7 +1,8 @@
+# T2s-GPT/DVQVAE_rechecker.py
 import torch
 from models.DVQVAE import DVQVAE_Encoder, DVQVAE_Decoder, DVQVAELoss
 
-sign_language_dim = 512
+sign_language_dim = 150
 T = 100
 batch_size = 32
 latent_dim = 512
@@ -17,7 +18,9 @@ loss_fn = DVQVAELoss(lambda1=1.0, lambda2=0.5, lambda3=1.0, R=12)
 
 X_T = torch.randn(batch_size, T, sign_language_dim)  # batch_size, sequence_length, sign_language_dim
 Z_quantized, D_T_l, S_T, Z_T_l, I_T, codebook_indices, H_T = encoder(X_T, is_training = True)
+print(X_T.shape, Z_quantized.shape, D_T_l.shape, S_T.shape, Z_T_l.shape, I_T.shape, codebook_indices.shape, H_T.shape)
 X_re = decoder(Z_quantized, D_T_l, H_T)
+print("X_Re", X_re.shape)
 P_Y_given_X_re = torch.rand(batch_size)
 loss = loss_fn(X_T, X_re, Z_T_l, Z_quantized, I_T, T, P_Y_given_X_re)
 
