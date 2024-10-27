@@ -159,14 +159,16 @@ class DVQVAELoss(nn.Module):
         L_budget = torch.mean(torch.clamp(torch.sum(I_T) - T / self.R, min=0))
 
         # Sign Language Translation Auxiliary Loss (Eq. 10)
-        L_slt = -torch.mean(torch.log(P_Y_given_X_re + 1e-8))
+        # L_slt = -torch.mean(torch.log(P_Y_given_X_re + 1e-8))
 
         # Final Loss (Eq. 11)
-        L_total = L_vq + self.lambda2 * L_budget + self.lambda3 * L_slt
+        # L_total = L_vq + self.lambda2 * L_budget + self.lambda3 * L_slt
+        L_total = L_vq + self.lambda2 * L_budget + self.lambda3
 
         # Append loss into file
         if(loss_path is not None):
             with open(loss_path, "a") as f:
-                f.write(f"{L_X_re},{L_vq},{L_budget},{L_slt},{L_total}\n")
+                f.write(f"{L_X_re},{L_vq},{L_budget},{L_total}\n")
+                # f.write(f"{L_X_re},{L_vq},{L_budget},{L_slt},{L_total}\n")
 
         return L_total

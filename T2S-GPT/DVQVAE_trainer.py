@@ -16,12 +16,13 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
                        T=100, latent_dim=512, vocab_size=500, codebook_size=1024, 
                        output_dim=512):
     # Prepare dataset and data loader
+
     ## RandomDataset
-    # dataset = RandomDataset(T, sign_language_dim, output_dim, vocab_size, num_samples=5)
-    # train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    dataset = RandomDataset(T, sign_language_dim, output_dim, vocab_size, num_samples=5)
+    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     ## SignLanguageDataset
-    dataset = SignLanguageDataset()
-    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
+    # dataset = SignLanguageDataset()
+    # train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
 
     # Initialize models, loss function, optimizer, and scheduler
     encoder = DVQVAE_Encoder(sign_language_dim, latent_dim, codebook_size)
@@ -83,18 +84,19 @@ def plot_loss(loss_file):
     L_X_re_list = []
     L_vq_list = []
     L_budget_list = []
-    L_slt_list = []
+    # L_slt_list = []
     L_total_list = []
     
     with open(loss_file, 'r') as f:
         for line in f:
             # Split the line into values
             values = line.strip().split(',')
-            L_X_re, L_vq, L_budget, L_slt, L_total = map(float, values)
+            L_X_re, L_vq, L_budget, L_total = map(float, values)
+            # L_X_re, L_vq, L_budget, L_slt, L_total = map(float, values)
             L_X_re_list.append(L_X_re)
             L_vq_list.append(L_vq)
             L_budget_list.append(L_budget)
-            L_slt_list.append(L_slt)
+            # L_slt_list.append(L_slt)
             L_total_list.append(L_total)
     
     iterations = list(range(1, len(L_X_re_list) + 1))
@@ -104,7 +106,7 @@ def plot_loss(loss_file):
     plt.plot(iterations, L_X_re_list, label='L_X_re')
     plt.plot(iterations, L_vq_list, label='L_vq')
     plt.plot(iterations, L_budget_list, label='L_budget')
-    plt.plot(iterations, L_slt_list, label='L_slt')
+    # plt.plot(iterations, L_slt_list, label='L_slt')
     plt.plot(iterations, L_total_list, label='L_total')
     
     plt.title('DVQ-VAE Training Loss Components')

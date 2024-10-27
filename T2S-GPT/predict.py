@@ -30,9 +30,10 @@ def predict(Y, dvqvae_path, t2sgpt_path):
 
 
 def main():
-    # Generate Random Tensor (batch_size, length)
     Y = torch.randint(0, 500, (5, 100))
-    X_re = predict(Y, "./trained_model/dvqvae_model_2.pth", "./trained_model/t2sgpt_model_2.pth")
+    dvq_vae_model_path = ""
+    t2sgpt_model_path = ""
+    X_re = predict(Y, f"./trained_model/{dvq_vae_model_path}.pth", f"./trained_model/{t2sgpt_model_path}.pth")
     print(X_re)
 
 if __name__ == "__main__":

@@ -19,8 +19,8 @@ def train_t2s_gpt_model(epochs=10, batch_size=32, learning_rate=1e-4,
     model = T2S_GPT(vocab_size=vocab_size, codebook_size=codebook_size, max_duration=100, device=device).to(device)
     t2sgpt_loss = T2SGPTLoss()
     ## RandomDataset
-    # dataset = RandomDataset(T, sign_language_dim, output_dim, vocab_size, num_samples=5)
-    # train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    dataset = RandomDataset(T, sign_language_dim, sign_language_dim, vocab_size, num_samples=5)
+    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     ## SignLanguageDataset
     dataset = SignLanguageDataset()
     train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
