@@ -48,17 +48,24 @@ class T2S_GPT(nn.Module):
         D_T_l_embed = self.duration_embedding(D_T_l_with_start[:, :-1])
 
         # Code Transformer: Y, S_T -> S_T_pred
-        tgt_mask = self.get_tgt_mask(S_T_embed.size(1)).to(self.device)
+        tgt_mask = self.get_mask(S_T_embed.size(1)).to(self.device)
         H_code = self.code_transformer(Y_embed, S_T_embed, tgt_mask=tgt_mask)
         code_transformer_logits = self.code_output_layer(H_code)
         S_T_pred = torch.argmax(F.softmax(code_transformer_logits, dim=2), dim=2)
 
-        # Duration Transformer: D_T_l, S_T -> D_T_l_pred ??
-        tgt_mask_duration = self.get_tgt_mask(D_T_l_embed.size(1)).to(self.device)
-        # TODO: Recheck this (EQ. 13)
-        H_dur = self.duration_transformer(H_code, D_T_l_embed, tgt_mask=tgt_mask_duration)
+        # Duration Transformer: D_T_l, S_T -> D_T_l_pred
+        # # TODO: Recheck this (EQ. 13)
+        tgt_mask_duration = self.get_mask(D_T_l_embed.size(1)).to(self.device)
+        H_dur_input = H_code + S_T_embed
+        src_mask_duration = self.get_mask(H_dur_input.size(1)).to(self.device)
+        H_dur = self.duration_transformer(H_dur_input, D_T_l_embed, tgt_mask=tgt_mask_duration, src_mask=src_mask_duration)
         duration_transformer_logits = self.duration_output_layer(H_dur)
         D_T_l_pred = torch.argmax(F.softmax(duration_transformer_logits, dim=2), dim=2)
+
+        # tgt_mask_duration = self.get_tgget_maskt_mask(D_T_l_embed.size(1)).to(self.device)
+        # H_dur = self.duration_transformer(H_code, D_T_l_embed, tgt_mask=tgt_mask_duration)
+        # duration_transformer_logits = self.duration_output_layer(H_dur)
+        # D_T_l_pred = torch.argmax(F.softmax(duration_transformer_logits, dim=2), dim=2)
 
         return S_T_pred, S_T_with_start[:, 1:], code_transformer_logits, D_T_l_pred, D_T_l_with_start[:, 1:], duration_transformer_logits
 
@@ -71,21 +78,23 @@ class T2S_GPT(nn.Module):
             S_T = torch.full((Y.size(0), 1), SOS_TOKEN, dtype=torch.long, device=self.device)
             D_T_l = torch.full((Y.size(0), 1), SOS_TOKEN, dtype=torch.long, device=self.device)  
 
-            new_token = S_T
-            new_duration = D_T_l
-
             for _ in range(max_length):
-                S_T_embed = self.code_embedding(new_token)
+                # Code Transformer
+                S_T_embed = self.code_embedding(S_T)
                 H_code = self.code_transformer(Y_embed, S_T_embed)
-                code_transformer_logits = nn.Linear(self.embed_dim, self.embed_dim)(H_code)
-                next_token = torch.argmax(nn.Softmax(dim=2)(code_transformer_logits), dim=2, keepdim=True).squeeze(dim=2)
+                code_transformer_logits = self.code_output_layer(H_code[:, -1:, :])
+                next_token = torch.argmax(F.softmax(code_transformer_logits, dim=2), dim=2)
                 S_T = torch.cat((S_T, next_token), dim=1)
                 
-                D_T_l_embed = self.duration_embedding(new_duration)
-                output_dur = self.duration_transformer(H_code, D_T_l_embed)
-                duration_transformer_logits = nn.Linear(self.embed_dim, self.embed_dim)(output_dur)
-                next_duration = torch.argmax(nn.Softmax(dim=2)(duration_transformer_logits), dim=2, keepdim=True).squeeze(dim=2)
+                # Duration Transformer
+                S_T_pred_embed = self.code_embedding(S_T)
+                D_T_l_embed = self.duration_embedding(D_T_l)
+                H_dur_input = H_code + S_T_pred_embed
+                H_dur = self.duration_transformer(H_dur_input, D_T_l_embed)
+                duration_transformer_logits = self.duration_output_layer(H_dur[:, -1:, :])
+                next_duration = torch.argmax(F.softmax(duration_transformer_logits, dim=2), dim=2)
                 D_T_l = torch.cat((D_T_l, next_duration), dim=1)
+
 
                 if ((next_token == EOS_TOKEN).all() | (next_duration == EOS_TOKEN).all()):
                     break
@@ -93,8 +102,8 @@ class T2S_GPT(nn.Module):
         return S_T, D_T_l
 
 
-    def get_tgt_mask(self, size):
-        # Generates a squere matrix where each row allows words to be seen
+    def get_mask(self, size):
+        # Generates a square matrix where each row allows words to be seen
         mask = torch.tril(torch.ones(size, size) == 1) # Lower triangular matrix
         mask = mask.float()
         mask = mask.masked_fill(mask == 0, float('-inf')) # Convert zeros to -inf

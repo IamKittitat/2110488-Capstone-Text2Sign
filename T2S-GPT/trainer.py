@@ -13,15 +13,15 @@ from dataset.phoenix_dataset import SignLanguageDataset
 from utils.file_utils import get_unique_path
 from utils.pad_seq import pad_collate_fn
 
-def train_both_model(num_epochs=10, batch_size=32, sign_language_dim=512,
+def train_both_model(num_epochs=10, batch_size=32, sign_language_dim=150,
                        T=100, latent_dim=512, vocab_size=500, codebook_size=1024, 
                        output_dim=512):
     ## RandomDataset
-    # dataset = RandomDataset(T, sign_language_dim, output_dim, vocab_size, num_samples=5)
-    # train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    dataset = RandomDataset(T, sign_language_dim, output_dim, vocab_size, num_samples=5)
+    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     ## SignLanguageDataset
-    dataset = SignLanguageDataset()
-    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
+    # dataset = SignLanguageDataset()
+    # train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
 
     encoder = DVQVAE_Encoder(sign_language_dim, latent_dim, codebook_size)
     decoder = DVQVAE_Decoder(latent_dim, output_dim)
@@ -87,7 +87,7 @@ def train_both_model(num_epochs=10, batch_size=32, sign_language_dim=512,
     t2sgpt_model_path = get_unique_path('./trained_model/t2sgpt_model.pth')
 
 
-    for epoch in range(20):
+    for epoch in range(30):
         model.train()
         total_loss, total_code_loss, total_duration_loss = 0, 0, 0
         
@@ -96,7 +96,7 @@ def train_both_model(num_epochs=10, batch_size=32, sign_language_dim=512,
             Y = batch['spoken_language_text'].to(device)       # Target: text sequence
             
             Z_quantized, D_T_l, S_T, Z_T_l, I_T, codebook_indices, H_T = encoder(X_T, is_training=False)
-            S_T_pred, S_T_expected, H_code, code_transformer_logits, D_T_l_pred, D_T_l_expected, duration_transformer_logits = model(Y, codebook_indices, D_T_l)
+            S_T_pred, S_T_expected, code_transformer_logits, D_T_l_pred, D_T_l_expected, duration_transformer_logits = model(Y, codebook_indices, D_T_l)
             loss_total = t2sgpt_loss(code_transformer_logits, S_T_expected, D_T_l_pred, D_T_l_expected, t2sgpt_loss_path)
             
             optimizer.zero_grad()
@@ -126,11 +126,10 @@ def plot_loss(loss_file):
         for line in f:
             # Split the line into values
             values = line.strip().split(',')
-            L_X_re, L_vq, L_budget, L_slt, L_total = map(float, values)
+            L_X_re, L_vq, L_budget, L_total = map(float, values)
             L_X_re_list.append(L_X_re)
             L_vq_list.append(L_vq)
             L_budget_list.append(L_budget)
-            L_slt_list.append(L_slt)
             L_total_list.append(L_total)
     
     iterations = list(range(1, len(L_X_re_list) + 1))
@@ -155,7 +154,7 @@ def plot_loss(loss_file):
     
 
 def main():
-    loss_path, t2sgpt_loss_path = train_both_model(num_epochs=50, batch_size=5, codebook_size=64)
+    loss_path, t2sgpt_loss_path = train_both_model(num_epochs=100, batch_size=5, codebook_size=64)
     plot_loss(loss_path)
 
 if __name__ == "__main__":
