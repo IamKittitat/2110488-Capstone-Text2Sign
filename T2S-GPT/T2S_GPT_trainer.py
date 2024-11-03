@@ -22,13 +22,13 @@ def train_t2s_gpt_model(epochs=10, batch_size=32, learning_rate=1e-4,
     dataset = RandomDataset(T, sign_language_dim, sign_language_dim, vocab_size, num_samples=5)
     train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     ## SignLanguageDataset
-    dataset = SignLanguageDataset()
-    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
+    # dataset = SignLanguageDataset()
+    # train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
     
     optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 
     # Load the checkpoint
-    checkpoint = torch.load('./trained_model/dvqvae_model.pth')
+    checkpoint = torch.load('./trained_model/dvqvae_model_1.pth')
     encoder.load_state_dict(checkpoint['encoder_state_dict'])
 
     loss_path = get_unique_path('./data/T2SGPT_loss.txt')
@@ -42,7 +42,7 @@ def train_t2s_gpt_model(epochs=10, batch_size=32, learning_rate=1e-4,
             Y = batch['spoken_language_text'].to(device)       # Target: text sequence
             
             Z_quantized, D_T_l, S_T, Z_T_l, I_T, codebook_indices, H_T = encoder(X_T, is_training=False)
-            S_T_pred, S_T_expected, H_code, code_transformer_logits, D_T_l_pred, D_T_l_expected, duration_transformer_logits = model(Y, codebook_indices, D_T_l)
+            S_T_pred, S_T_expected, code_transformer_logits, D_T_l_pred, D_T_l_expected, duration_transformer_logits = model(Y, codebook_indices, D_T_l)
             loss_total = t2sgpt_loss(code_transformer_logits, S_T_expected, D_T_l_pred, D_T_l_expected, loss_path)
             
             optimizer.zero_grad()
@@ -57,13 +57,17 @@ def train_t2s_gpt_model(epochs=10, batch_size=32, learning_rate=1e-4,
     torch.save({
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
-    }, './trained_model/t2sgpt_model.pth')
+    }, './trained_model/t2sgpt_model_1.pth')
 
+    # print("SHAPE:",D_T_l_pred.shape, D_T_l_expected.shape)
+    # print(D_T_l)
+    # print(D_T_l_pred)
+    # print(D_T_l_expected)
     return total_loss
     
 
 def main():
-    train_t2s_gpt_model(epochs=10, batch_size=32, learning_rate=1e-4, codebook_size = 64)
+    train_t2s_gpt_model(epochs=3, batch_size=32, learning_rate=1e-5, codebook_size = 64, sign_language_dim=150)
 
 if __name__ == "__main__":
     main()
