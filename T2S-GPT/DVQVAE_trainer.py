@@ -3,7 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import torch
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from models.DVQVAE import DVQVAE_Encoder, DVQVAE_Decoder, DVQVAELoss
@@ -21,8 +21,15 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
     dataset = RandomDataset(T, sign_language_dim, output_dim, vocab_size, num_samples=5)
     train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     ## SignLanguageDataset
-    # dataset = SignLanguageDataset()
-    # train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
+    dataset = SignLanguageDataset()
+
+    total_size = len(dataset)
+    train_size = int(0.7 * total_size)
+    val_size = total_size - train_size
+
+    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
 
     # Initialize models, loss function, optimizer, and scheduler
     encoder = DVQVAE_Encoder(sign_language_dim, latent_dim, codebook_size)
@@ -36,7 +43,8 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
     encoder.to(device)
     decoder.to(device)
 
-    loss_list = []
+    train_loss_list = []
+    val_loss_list = []
     loss_path = get_unique_path('./data/DVQVAE_loss.txt')
     model_path = get_unique_path('./trained_model/dvqvae_model.pth')
 
@@ -45,7 +53,7 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
         encoder.train()
         decoder.train()
 
-        total_loss = 0.0
+        total_train_loss = 0.0
         for batch in train_loader:
             X_T = batch['sign_language_sequence'].to(device)  # Input: sign language sequence
             Y = batch['spoken_language_text'].to(device)       # Target: text sequence
@@ -57,19 +65,20 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
             # For demonstration, replace this with actual values
             P_Y_given_X_re = torch.ones(batch_size, output_dim, T).to(device)
 
-            loss = loss_fn(X_T, X_re, Z_T_l, Z_quantized, I_T, T, P_Y_given_X_re, loss_path)
+            train_loss = loss_fn(X_T, X_re, Z_T_l, Z_quantized, I_T, T, P_Y_given_X_re, loss_path)
 
             # Back Propagation
             optimizer.zero_grad()
-            loss.backward()
+            train_loss.backward()
             optimizer.step()
 
-            total_loss += loss.item()
+            total_train_loss += train_loss.item()
 
         scheduler.step()
 
-        print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {total_loss / len(train_loader):.4f}, LR: {scheduler.get_last_lr()[0]:.6f}")
-        loss_list.append(total_loss / len(train_loader))
+        print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {total_train_loss / len(train_loader):.4f}, LR: {scheduler.get_last_lr()[0]:.6f}")
+        train_loss_list.append(total_train_loss / len(train_loader))
+
 
     # Save the model
     torch.save({
@@ -78,7 +87,37 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
         'optimizer_state_dict': optimizer.state_dict(),
     }, model_path)
 
-    return loss_list, X_T, X_re, loss_path
+    return train_loss_list, X_T, X_re, loss_path
+
+def evaluate_model(encoder, decoder, val_loader, output_dim=512):
+    encoder.eval()
+    decoder.eval()
+    total_val_loss = 0.0
+
+    with torch.no_grad():
+        for batch in val_loader:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            X_T = batch['sign_language_sequence'].to(device)  # Input
+            Y = batch['spoken_language_text'].to(device)       # Ground truth
+
+            # Forward pass
+            Z_quantized, D_T_l, S_T, Z_T_l, I_T, codebook_indices, H_T = encoder(X_T, is_training=False)
+            X_re = decoder(Z_quantized, D_T_l, H_T)
+
+            # Probabilistic output for predicted sequence
+            P_Y_given_X_re = torch.ones(X_T.size(0), output_dim, T).to(device)
+
+            # Calculate validation loss
+            loss_fn = DVQVAELoss(lambda1=1.0, lambda2=0.5, lambda3=1.0, R=12)
+            loss_path = get_unique_path('./data/DVQVAE_loss.txt')
+            val_loss = loss_fn(X_T, X_re, Z_T_l, Z_quantized, I_T, T, P_Y_given_X_re, loss_path)
+            total_val_loss += val_loss.item()
+
+        avg_val_loss = total_val_loss / len(val_loader)
+        print(f"Validation Loss after Training: {avg_val_loss:.4f}")
+    
+    return avg_val_loss
+
 
 def plot_loss(loss_file):
     L_X_re_list = []

@@ -1,3 +1,4 @@
+# T2s-GPT/predict.py
 import os
 import matplotlib.pyplot as plt
 import torch
@@ -8,6 +9,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from models.DVQVAE import DVQVAE_Encoder, DVQVAE_Decoder, DVQVAELoss
 from models.T2S_GPT import T2S_GPT, T2SGPTLoss
 from dataset.random_dataset import RandomDataset
+from dataset.phoenix_dataset import SignLanguageDataset
 from utils.file_utils import get_unique_path
 
 def predict(Y, dvqvae_path, t2sgpt_path):

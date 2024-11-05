@@ -1,3 +1,4 @@
+# T2s-GPT/T2S_GPT_rechecker.py
 import torch
 from models.T2S_GPT import T2S_GPT, T2SGPTLoss
 from models.DVQVAE import DVQVAE_Encoder

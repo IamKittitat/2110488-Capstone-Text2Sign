@@ -1,3 +1,4 @@
+# T2s-GPT/models/T2S_GPT.py
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

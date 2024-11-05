@@ -1,3 +1,4 @@
+# T2s-GPT/models/positional_encoding.py
 import math
 import torch
 import torch.nn as nn

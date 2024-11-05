@@ -12,7 +12,7 @@ from utils.pad_seq import pad_collate_fn
 
 def train_t2s_gpt_model(epochs=10, batch_size=32, learning_rate=1e-4,
                          T=100, vocab_size=500, codebook_size=1024,
-                         sign_language_dim=512, latent_dim=512):
+                         sign_language_dim=150, latent_dim=512):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     encoder = DVQVAE_Encoder(sign_language_dim, latent_dim, codebook_size).to(device)
@@ -28,7 +28,7 @@ def train_t2s_gpt_model(epochs=10, batch_size=32, learning_rate=1e-4,
     optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 
     # Load the checkpoint
-    checkpoint = torch.load('./trained_model/dvqvae_model_1.pth')
+    checkpoint = torch.load('./trained_model/dvqvae_model_15.pth')
     encoder.load_state_dict(checkpoint['encoder_state_dict'])
 
     loss_path = get_unique_path('./data/T2SGPT_loss.txt')
