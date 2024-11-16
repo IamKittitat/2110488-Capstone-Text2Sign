@@ -8,9 +8,10 @@ from dataset.phoenix_dataset import SignLanguageDataset
 from models.T2S_GPT import T2S_GPT, T2SGPTLoss
 from models.DVQVAE import DVQVAE_Encoder
 from utils.file_utils import get_unique_path
+from utils.visualization import plot_loss
 from utils.pad_seq import pad_collate_fn
 
-def train_t2s_gpt_model(epochs=10, batch_size=32, learning_rate=1e-4,
+def train_t2s_gpt_model(dvq_path, epochs=10, batch_size=32, learning_rate=1e-4,
                          T=100, vocab_size=500, codebook_size=1024,
                          sign_language_dim=150, latent_dim=512):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -28,10 +29,12 @@ def train_t2s_gpt_model(epochs=10, batch_size=32, learning_rate=1e-4,
     optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 
     # Load the checkpoint
-    checkpoint = torch.load('./trained_model/dvqvae_model_15.pth')
-    encoder.load_state_dict(checkpoint['encoder_state_dict'])
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    checkpoint = torch.load(os.path.join(current_dir, f'trained_model/{dvq_path}'))
+    loss_path = get_unique_path(os.path.join(current_dir, 'data/T2SGPT_loss.txt'))
+    model_path = get_unique_path(os.path.join(current_dir, 'trained_model/t2sgpt_model.pth'))
 
-    loss_path = get_unique_path('./data/T2SGPT_loss.txt')
+    encoder.load_state_dict(checkpoint['encoder_state_dict'])
 
     for epoch in range(epochs):
         model.train()
@@ -57,17 +60,15 @@ def train_t2s_gpt_model(epochs=10, batch_size=32, learning_rate=1e-4,
     torch.save({
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
-    }, './trained_model/t2sgpt_model_1.pth')
+    }, model_path)
 
-    # print("SHAPE:",D_T_l_pred.shape, D_T_l_expected.shape)
-    # print(D_T_l)
-    # print(D_T_l_pred)
-    # print(D_T_l_expected)
-    return total_loss
+    return total_loss, loss_path
     
-
 def main():
-    train_t2s_gpt_model(epochs=3, batch_size=32, learning_rate=1e-5, codebook_size = 64, sign_language_dim=150)
+    total_loss, loss_path = train_t2s_gpt_model(dvq_path = "dvqvae_model_1.pth", epochs=3, batch_size=32, learning_rate=1e-5, codebook_size = 64, sign_language_dim=150)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    save_path = get_unique_path(os.path.join(current_dir, 'data/T2SGPT_plot.png'))
+    plot_loss(loss_path, ["L_code", "L_duration", "L_total"], "T2S-GPT Training Loss", save_path, y_lim = 10000)
 
 if __name__ == "__main__":
     main()

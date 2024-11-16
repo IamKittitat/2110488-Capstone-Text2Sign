@@ -6,7 +6,6 @@ def get_unique_path(filepath):
     directory, filename = os.path.split(filepath)
     name, ext = os.path.splitext(filename)
 
-    # Create directory if it doesn't exist
     if not os.path.exists(directory):
         os.makedirs(directory)
 
