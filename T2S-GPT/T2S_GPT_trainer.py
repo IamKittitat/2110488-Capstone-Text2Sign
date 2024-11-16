@@ -30,10 +30,12 @@ def train_t2s_gpt_model(dvq_path, epochs=10, batch_size=32, learning_rate=1e-4,
 
     # Load the checkpoint
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    checkpoint = torch.load(os.path.join(current_dir, f'trained_model/{dvq_path}'))
-    loss_path = get_unique_path(os.path.join(current_dir, 'data/T2SGPT_loss.txt'))
-    model_path = get_unique_path(os.path.join(current_dir, 'trained_model/t2sgpt_model.pth'))
+    folder_dir = get_unique_path(os.path.join(current_dir, 'result/T2SGPT_trainer'))
+    os.makedirs(folder_dir, exist_ok=True)
+    loss_path = os.path.join(folder_dir, 'T2SGPT_loss.txt')
+    model_path = os.path.join(folder_dir, 'T2SGPT_model.pth')
 
+    checkpoint = torch.load(os.path.join(current_dir, f'result/{dvq_path}/DVQVAE_model.pth'))
     encoder.load_state_dict(checkpoint['encoder_state_dict'])
 
     for epoch in range(epochs):
@@ -62,12 +64,12 @@ def train_t2s_gpt_model(dvq_path, epochs=10, batch_size=32, learning_rate=1e-4,
         'optimizer_state_dict': optimizer.state_dict(),
     }, model_path)
 
-    return total_loss, loss_path
+    return total_loss, folder_dir
     
 def main():
-    total_loss, loss_path = train_t2s_gpt_model(dvq_path = "dvqvae_model_1.pth", epochs=3, batch_size=32, learning_rate=1e-5, codebook_size = 64, sign_language_dim=150)
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    save_path = get_unique_path(os.path.join(current_dir, 'data/T2SGPT_plot.png'))
+    total_loss, folder_dir = train_t2s_gpt_model(dvq_path = "DVQVAE_trainer_1", epochs=3, batch_size=32, learning_rate=1e-5, codebook_size = 64, sign_language_dim=150)
+    loss_path = os.path.join(folder_dir, 'T2SGPT_loss.txt')
+    save_path = os.path.join(folder_dir, 'T2SGPT_plot.png')
     plot_loss(loss_path, ["L_code", "L_duration", "L_total"], "T2S-GPT Training Loss", save_path, y_lim = 10000)
 
 if __name__ == "__main__":

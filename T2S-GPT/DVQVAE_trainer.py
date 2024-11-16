@@ -43,11 +43,12 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
     decoder.to(device)
 
     train_loss_list = []
-    val_loss_list = []
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    loss_path = get_unique_path(os.path.join(current_dir, 'data/DVQVAE_loss.txt'))
-    model_path = get_unique_path(os.path.join(current_dir, 'trained_model/dvqvae_model.pth'))
+    folder_dir = get_unique_path(os.path.join(current_dir, 'result/DVQVAE_trainer'))
+    os.makedirs(folder_dir, exist_ok=True)
+    loss_path = os.path.join(folder_dir, 'DVQVAE_loss.txt')
+    model_path = os.path.join(folder_dir, 'DVQVAE_model.pth')
 
     # Training loop
     for epoch in range(num_epochs):
@@ -88,12 +89,12 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
         'optimizer_state_dict': optimizer.state_dict(),
     }, model_path)
 
-    return train_loss_list, X_T, X_re, loss_path
+    return train_loss_list, X_T, X_re, folder_dir
 
 def main():
-    loss_list, X_T, X_re, loss_path = train_dvqvae_model(num_epochs=20, batch_size=5, codebook_size=64, sign_language_dim=150)
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    save_path = get_unique_path(os.path.join(current_dir, 'data/DVQVAE_plot.png'))
+    loss_list, X_T, X_re, folder_dir = train_dvqvae_model(num_epochs=20, batch_size=5, codebook_size=64, sign_language_dim=150)
+    loss_path = os.path.join(folder_dir, 'DVQVAE_loss.txt')
+    save_path = os.path.join(folder_dir, 'DVQVAE_plot.png')
     plot_loss(loss_path, ["L_X_re", "L_vq", "L_budget", "L_total"], "DVQ-VAE Training Loss", save_path)
 
 if __name__ == "__main__":

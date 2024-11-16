@@ -37,8 +37,10 @@ def train_both_model(dvq_epochs=10, t2s_epoch = 10, batch_size=32, sign_language
 
     loss_list = []
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    dvq_loss_path = get_unique_path(os.path.join(current_dir, 'data/DVQVAE_loss.txt'))
-    dvq_model_path = get_unique_path(os.path.join(current_dir, 'trained_model/dvqvae_model.pth'))
+    folder_dir = get_unique_path(os.path.join(current_dir, 'result/trainer'))
+    os.makedirs(folder_dir, exist_ok=True)
+    dvq_loss_path = os.path.join(folder_dir, 'DVQVAE_loss.txt')
+    dvq_model_path = os.path.join(folder_dir, 'DVQVAE_model.pth')
 
     # Training loop
     for epoch in range(dvq_epochs):
@@ -85,9 +87,8 @@ def train_both_model(dvq_epochs=10, t2s_epoch = 10, batch_size=32, sign_language
     optimizer = optim.AdamW(model.parameters(), lr=1e-4)
     checkpoint = torch.load(dvq_model_path)
     encoder.load_state_dict(checkpoint['encoder_state_dict'])
-    t2s_loss_path = get_unique_path(os.path.join(current_dir, 'data/T2SGPT_loss.txt'))
-    t2s_model_path = get_unique_path(os.path.join(current_dir, 'trained_model/t2sgpt_model.pth'))
-
+    t2s_loss_path = os.path.join(folder_dir, 'T2SGPT_loss.txt')
+    t2s_model_path = os.path.join(folder_dir, 'T2SGPT_model.pth')
 
     for epoch in range(t2s_epoch):
         model.train()
@@ -114,14 +115,16 @@ def train_both_model(dvq_epochs=10, t2s_epoch = 10, batch_size=32, sign_language
         'optimizer_state_dict': optimizer.state_dict(),
     }, t2s_model_path)
 
-    return dvq_loss_path, t2s_loss_path
+    return folder_dir
 
 
 def main():
-    dvq_loss_path, t2s_loss_path = train_both_model(dvq_epochs=10, t2s_epoch=3, batch_size=5, codebook_size=64)
+    folder_dir = train_both_model(dvq_epochs=10, t2s_epoch=3, batch_size=5, codebook_size=64)
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    dvq_save_path = get_unique_path(os.path.join(current_dir, 'data/DVQVAE_plot.png'))
-    t2s_save_path = get_unique_path(os.path.join(current_dir, 'data/T2SGPT_plot.png'))
+    dvq_loss_path = os.path.join(folder_dir, 'DVQVAE_loss.txt')
+    dvq_save_path = os.path.join(folder_dir, 'DVQVAE_plot.png')
+    t2s_loss_path = os.path.join(folder_dir, 'T2SGPT_loss.txt')
+    t2s_save_path = os.path.join(folder_dir, 'T2SGPT_plot.png')
     plot_loss(dvq_loss_path, ["L_X_re", "L_vq", "L_budget", "L_total"], "DVQ-VAE Training Loss", dvq_save_path)
     plot_loss(t2s_loss_path, ["L_code", "L_duration", "L_total"], "T2S-GPT Training Loss", t2s_save_path, y_lim = 10000)
 
