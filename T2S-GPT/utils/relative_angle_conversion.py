@@ -3,7 +3,7 @@ from typing import Sequence
 
 import numpy as np
 
-from absolute_angle_conversion import absolute_angle_to_position, position_to_absolute_angle
+from utils.absolute_angle_conversion import absolute_angle_to_position, position_to_absolute_angle
 
 
 def position_to_relative_angle(
@@ -100,7 +100,7 @@ def relative_angle_to_position(
 
 
 if __name__ == "__main__":
-    from skeleton_utils.progressive_trans_model import (
+    from utils.skeleton_utils.progressive_trans_model import (
         JOINT_TO_CHILD_JOINTS_INDEX,
         JOINT_TO_PREV_JOINT_INDEX,
         ROOT_JOINT,
@@ -110,17 +110,17 @@ if __name__ == "__main__":
     # original_joints = np.linspace(0, 50, 150).reshape(-1, 3)
     original_joints = np.random.rand(50, 3)
     original_joints = original_joints - original_joints[0]
-    print(f"Original joints")
+    print(f"Original joints, ({original_joints.shape[0]}, {original_joints.shape[1]})")
     print(original_joints)
 
     rel_angle = position_to_relative_angle(original_joints, JOINT_TO_PREV_JOINT_INDEX, ROOT_JOINT)
-    print(f"Relative angle joints")
+    print(f"Relative angle joints, ({rel_angle.shape[0]}, {rel_angle.shape[1]})")
     print(rel_angle)
 
     pos_joints = relative_angle_to_position(
         rel_angle, SKELETON_MODEL, JOINT_TO_PREV_JOINT_INDEX, JOINT_TO_CHILD_JOINTS_INDEX, ROOT_JOINT
     )
-    print("Positional joints")
+    print(f"Positional joints, ({pos_joints.shape[0]}, {pos_joints.shape[1]})")
     print(pos_joints)
 
     print("Is the original joints and positional joints the same? ->", np.allclose(original_joints, pos_joints))

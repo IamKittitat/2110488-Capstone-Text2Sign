@@ -17,12 +17,21 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
                        T=100, latent_dim=512, vocab_size=500, codebook_size=1024, 
                        output_dim=512):
     # Prepare dataset and data loader
+    current_dir = os.path.dirname(os.path.abspath(__file__))
 
     ## RandomDataset
     # dataset = RandomDataset(T, sign_language_dim, output_dim, vocab_size, num_samples=5)
     # train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    
     ## SignLanguageDataset
-    dataset = SignLanguageDataset()
+    # Relative Angle Data
+    skel_file = os.path.join(current_dir, 'data/sampledata_relative/train.skels')
+    text_file = os.path.join(current_dir, 'data/sampledata_relative/train.txt')
+    # Absolute Position Data
+    # skel_file = os.path.join(current_dir, 'data/sampledata/train.skels')
+    # text_file = os.path.join(current_dir, 'data/sampledata/train.txt')
+
+    dataset = SignLanguageDataset(skel_file=skel_file, text_file=text_file)
     total_size = len(dataset)
     train_size = int(0.7 * total_size)
     val_size = total_size - train_size
@@ -44,7 +53,6 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
 
     train_loss_list = []
 
-    current_dir = os.path.dirname(os.path.abspath(__file__))
     folder_dir = get_unique_path(os.path.join(current_dir, 'result/DVQVAE_trainer'))
     os.makedirs(folder_dir, exist_ok=True)
     loss_path = os.path.join(folder_dir, 'DVQVAE_loss.txt')
@@ -92,7 +100,7 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
     return train_loss_list, X_T, X_re, folder_dir
 
 def main():
-    loss_list, X_T, X_re, folder_dir = train_dvqvae_model(num_epochs=20, batch_size=5, codebook_size=64, sign_language_dim=150)
+    loss_list, X_T, X_re, folder_dir = train_dvqvae_model(num_epochs=100, batch_size=5, codebook_size=64, sign_language_dim=150)
     loss_path = os.path.join(folder_dir, 'DVQVAE_loss.txt')
     save_path = os.path.join(folder_dir, 'DVQVAE_plot.png')
     plot_loss(loss_path, ["L_X_re", "L_vq", "L_budget", "L_total"], "DVQ-VAE Training Loss", save_path)

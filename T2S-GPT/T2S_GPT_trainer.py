@@ -14,22 +14,32 @@ from utils.pad_seq import pad_collate_fn
 def train_t2s_gpt_model(dvq_path, epochs=10, batch_size=32, learning_rate=1e-4,
                          T=100, vocab_size=500, codebook_size=1024,
                          sign_language_dim=150, latent_dim=512):
+    
+    current_dir = os.path.dirname(os.path.abspath(__file__))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     encoder = DVQVAE_Encoder(sign_language_dim, latent_dim, codebook_size).to(device)
     model = T2S_GPT(vocab_size=vocab_size, codebook_size=codebook_size, max_duration=100, device=device).to(device)
     t2sgpt_loss = T2SGPTLoss()
+    
     ## RandomDataset
-    dataset = RandomDataset(T, sign_language_dim, sign_language_dim, vocab_size, num_samples=5)
-    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    # dataset = RandomDataset(T, sign_language_dim, sign_language_dim, vocab_size, num_samples=5)
+    # train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    
     ## SignLanguageDataset
-    # dataset = SignLanguageDataset()
-    # train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
+    # Relative Angle Data
+    skel_file = os.path.join(current_dir, 'data/sampledata_relative/train.skels')
+    text_file = os.path.join(current_dir, 'data/sampledata_relative/train.txt')
+    # Absolute Position Data
+    # skel_file = os.path.join(current_dir, 'data/sampledata/train.skels')
+    # text_file = os.path.join(current_dir, 'data/sampledata/train.txt')
+
+    dataset = SignLanguageDataset(skel_file=skel_file, text_file=text_file)
+    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
     
     optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 
     # Load the checkpoint
-    current_dir = os.path.dirname(os.path.abspath(__file__))
     folder_dir = get_unique_path(os.path.join(current_dir, 'result/T2SGPT_trainer'))
     os.makedirs(folder_dir, exist_ok=True)
     loss_path = os.path.join(folder_dir, 'T2SGPT_loss.txt')
@@ -67,7 +77,7 @@ def train_t2s_gpt_model(dvq_path, epochs=10, batch_size=32, learning_rate=1e-4,
     return total_loss, folder_dir
     
 def main():
-    total_loss, folder_dir = train_t2s_gpt_model(dvq_path = "DVQVAE_trainer_1", epochs=3, batch_size=32, learning_rate=1e-5, codebook_size = 64, sign_language_dim=150)
+    total_loss, folder_dir = train_t2s_gpt_model(dvq_path = "DVQVAE_trainer_angle", epochs=30, batch_size=32, learning_rate=1e-5, codebook_size = 64, sign_language_dim=150)
     loss_path = os.path.join(folder_dir, 'T2SGPT_loss.txt')
     save_path = os.path.join(folder_dir, 'T2SGPT_plot.png')
     plot_loss(loss_path, ["L_code", "L_duration", "L_total"], "T2S-GPT Training Loss", save_path, y_lim = 10000)

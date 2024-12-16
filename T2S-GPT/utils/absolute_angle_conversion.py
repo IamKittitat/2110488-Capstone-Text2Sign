@@ -3,7 +3,7 @@ from typing import Sequence
 
 import numpy as np
 
-from skeleton_utils import compute_joint_tree
+from utils.skeleton_utils import compute_joint_tree
 
 
 def position_to_absolute_angle(
@@ -123,7 +123,7 @@ def absolute_angle_to_position(
 
 
 if __name__ == "__main__":
-    from skeleton_utils.progressive_trans_model import (
+    from utils.skeleton_utils.progressive_trans_model import (
         JOINT_TO_PREV_JOINT_INDEX,
         ROOT_JOINT,
         SKELETON_MODEL,
