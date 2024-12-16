@@ -1,6 +1,4 @@
 import matplotlib.pyplot as plt
-import os
-from utils.file_utils import get_unique_path
 
 def plot_loss(loss_file, metrics, title, save_path, y_lim = 10):
     """
