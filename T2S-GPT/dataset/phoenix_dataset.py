@@ -7,7 +7,8 @@ from torchtext.vocab import build_vocab_from_iterator
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class SignLanguageDataset(Dataset):
-    def __init__(self, skel_file='T2S-GPT/data/alldata/train.skels', text_file='T2S-GPT/data/alldata/train.txt', vocab=None, seq_length=200, text_length=30, sign_language_dim=150, window_size=16):
+    # def __init__(self, skel_file='T2S-GPT/data/alldata/train.skels', text_file='T2S-GPT/data/alldata/train.txt', vocab=None, seq_length=200, text_length=30, sign_language_dim=150, window_size=16):
+    def __init__(self, skel_file='T2S-GPT/data/sampledata/train.skels', text_file='T2S-GPT/data/sampledata/train.txt', vocab=None, seq_length=200, text_length=30, sign_language_dim=150, window_size=16):
         self.seq_length = seq_length
         self.text_length = text_length
         self.sign_language_dim = sign_language_dim

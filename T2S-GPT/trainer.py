@@ -119,8 +119,7 @@ def train_both_model(dvq_epochs=10, t2s_epoch = 10, batch_size=32, sign_language
 
 
 def main():
-    folder_dir = train_both_model(dvq_epochs=10, t2s_epoch=3, batch_size=5, codebook_size=64)
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+    folder_dir = train_both_model(dvq_epochs=100, t2s_epoch=30, batch_size=5, codebook_size=64)
     dvq_loss_path = os.path.join(folder_dir, 'DVQVAE_loss.txt')
     dvq_save_path = os.path.join(folder_dir, 'DVQVAE_plot.png')
     t2s_loss_path = os.path.join(folder_dir, 'T2SGPT_loss.txt')
