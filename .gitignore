@@ -1,3 +1,5 @@
 __pycache__
 data/
 result/
+*.pptx
+*.DS_Store
