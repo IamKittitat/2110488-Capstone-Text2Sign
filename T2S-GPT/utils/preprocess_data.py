@@ -65,7 +65,7 @@ def batch_process(input_dir, reference_dir, output_file):
     global_mean, global_std = compute_global_stats(input_dir)
 
     with open(output_file, 'w') as f:
-        for skeleton_file in os.listdir(input_dir):
+        for skeleton_file in sorted(os.listdir(input_dir)): 
             print(f"Processing {skeleton_file}")
             input_skeleton = np.load(os.path.join(input_dir, skeleton_file))
             scaled_skeleton = scale_data(input_skeleton, reference_skeleton, global_mean, global_std)
