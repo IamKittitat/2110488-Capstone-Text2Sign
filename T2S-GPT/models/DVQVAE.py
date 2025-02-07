@@ -163,7 +163,7 @@ class DVQVAELoss(nn.Module):
 
         # Final Loss (Eq. 11)
         # L_total = L_vq + self.lambda2 * L_budget + self.lambda3 * L_slt
-        L_total = L_vq + self.lambda2 * L_budget + self.lambda3
+        L_total = L_vq + self.lambda2 * L_budget
 
         # Append loss into file
         if(loss_path is not None):

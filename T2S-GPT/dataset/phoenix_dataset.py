@@ -23,26 +23,27 @@ class SignLanguageDataset(Dataset):
             # Strip and split lines, then convert to float and reshape based on joint size
             self.sign_language_data = [line.strip().split(" ") for line in self.sign_language_data]
             self.sign_language_data = [[float(val) for val in line] for line in self.sign_language_data]
-            self.sign_language_data = [torch.tensor(line).reshape(-1, self.sign_language_dim + 1)[:, :-1] for line in self.sign_language_data]
+            # self.sign_language_data = [torch.tensor(line).reshape(-1, self.sign_language_dim + 1)[:, :-1] for line in self.sign_language_data]
+            self.sign_language_data = [torch.tensor(line).reshape(-1, self.sign_language_dim) for line in self.sign_language_data]
 
         # Read and process text data
         with open(text_file, 'r') as f:
             self.text_data = [line.strip().split() for line in f]
 
-        # Filter out sequences where the sequence length is less than or equal to the window size
-        self.sign_language_data, self.text_data = zip(*[
-            (line, self.text_data[idx])
-            for idx, line in enumerate(self.sign_language_data)
-            if line.shape[0] > self.window_size
-        ])
+        # # Filter out sequences where the sequence length is less than or equal to the window size
+        # self.sign_language_data, self.text_data = zip(*[
+        #     (line, self.text_data[idx])
+        #     for idx, line in enumerate(self.sign_language_data)
+        #     if line.shape[0] > self.window_size
+        # ])
 
-        # Normalize the skeleton data (calculate min and max values)
-        for line in self.sign_language_data:
-            self.min_value = min(self.min_value, line.min())
-            self.max_value = max(self.max_value, line.max())
+        # # Normalize the skeleton data (calculate min and max values)
+        # for line in self.sign_language_data:
+        #     self.min_value = min(self.min_value, line.min())
+        #     self.max_value = max(self.max_value, line.max())
 
-        # Normalize the skeleton data
-        self.sign_language_data = [(line - self.min_value) / (self.max_value - self.min_value) for line in self.sign_language_data]
+        # # Normalize the skeleton data
+        # self.sign_language_data = [(line - self.min_value) / (self.max_value - self.min_value) for line in self.sign_language_data]
 
         # Build or use existing vocabulary for text data
         if vocab:
@@ -58,24 +59,25 @@ class SignLanguageDataset(Dataset):
         vocab = build_vocab_from_iterator(yield_tokens(text_data))
         return vocab
     
-    def preprocess_data(self, X_T):
-        # Pad from 150 to 512 if necessary
-        padded_X_T = F.pad(X_T, (0, 512 - X_T.size(-1)), "constant", 0)
-        return padded_X_T
+    # def preprocess_data(self, X_T):
+    #     # Pad from 150 to 512 if necessary
+    #     padded_X_T = F.pad(X_T, (0, 512 - X_T.size(-1)), "constant", 0)
+    #     return padded_X_T
 
     def __len__(self):
         return len(self.sign_language_data)
 
     def __getitem__(self, idx):
-        # Check if sequence length is enough for window
-        seq_length = self.sign_language_data[idx].shape[0]
-        if seq_length < self.window_size:
-            raise ValueError(f"Sequence at index {idx} is shorter than window size {self.window_size}")
+        # # Check if sequence length is enough for window
+        # seq_length = self.sign_language_data[idx].shape[0]
+        # if seq_length < self.window_size:
+        #     raise ValueError(f"Sequence at index {idx} is shorter than window size {self.window_size}")
 
-        # Get skeleton sequence within window size
-        start_index = torch.randint(0, seq_length - self.window_size, (1,)).item()
-        end_index = start_index + self.window_size
-        sign_language_sequence = self.sign_language_data[idx][start_index:end_index]
+        # # Get skeleton sequence within window size
+        # start_index = torch.randint(0, seq_length - self.window_size, (1,)).item()
+        # end_index = start_index + self.window_size
+        # sign_language_sequence = self.sign_language_data[idx][start_index:end_index]
+        sign_language_sequence = self.sign_language_data[idx]
 
         # Get the corresponding spoken language text and convert to indices
         spoken_language_text = self.text_data[idx]
@@ -83,7 +85,9 @@ class SignLanguageDataset(Dataset):
 
         return {
             'sign_language_sequence': sign_language_sequence.to(device),
-            'spoken_language_text': spoken_language_tensor.to(device)
+            'spoken_language_text': spoken_language_tensor.to(device),
+            'sign_language_original_length': sign_language_sequence.shape[0],
+            'spoken_language_original_length': len(spoken_language_text)
         }
 
     # def __getitem__(self, idx):

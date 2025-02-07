@@ -1,6 +1,7 @@
 # T2s-GPT/DVQVAE_trainer.py
 import os
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
@@ -25,23 +26,24 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
     
     ## SignLanguageDataset
     # Relative Angle Data
-    skel_file = os.path.join(current_dir, 'data/sampledata_relative/train.skels')
-    text_file = os.path.join(current_dir, 'data/sampledata_relative/train.txt')
+    # skel_file = os.path.join(current_dir, 'data/sampledata_relative/train.skels')
+    # text_file = os.path.join(current_dir, 'data/sampledata_relative/train.txt')
     # Absolute Position Data
-    # skel_file = os.path.join(current_dir, 'data/sampledata/train.skels')
-    # text_file = os.path.join(current_dir, 'data/sampledata/train.txt')
+    skel_file = os.path.join(current_dir, 'data/scaled_skeleton/dev.skels')
+    text_file = os.path.join(current_dir, 'data/scaled_skeleton/dev.txt')
 
-    dataset = SignLanguageDataset(skel_file=skel_file, text_file=text_file)
-    total_size = len(dataset)
-    train_size = int(0.7 * total_size)
-    val_size = total_size - train_size
-    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
+    dataset = SignLanguageDataset(skel_file=skel_file, text_file=text_file, sign_language_dim = sign_language_dim, window_size=394)
+    # TODO : FIX LATER TO HAVE VAL_LOADER
+    # total_size = len(dataset)
+    # train_size = int(0.7 * total_size)
+    # val_size = total_size - train_size
+    # train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
+    # val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate_fn)
 
     # Initialize models, loss function, optimizer, and scheduler
     encoder = DVQVAE_Encoder(sign_language_dim, latent_dim, codebook_size)
-    decoder = DVQVAE_Decoder(latent_dim, output_dim)
+    decoder = DVQVAE_Decoder(latent_dim, output_dim, sign_language_dim = sign_language_dim)
     loss_fn = DVQVAELoss(lambda1=1.0, lambda2=0.5, lambda3=1.0, R=12)
     
     optimizer = optim.AdamW(list(encoder.parameters()) + list(decoder.parameters()), lr=2e-4, betas=(0.9, 0.99))
@@ -67,6 +69,8 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
         for batch in train_loader:
             X_T = batch['sign_language_sequence'].to(device)  # Input: sign language sequence
             Y = batch['spoken_language_text'].to(device)       # Target: text sequence
+            X_original_length = batch['sign_language_original_length']
+            # Y_original_length = batch['spoken_language_original_length']
 
             # Forward pass through DVQ-VAE
             Z_quantized, D_T_l, S_T, Z_T_l, I_T, codebook_indices, H_T = encoder(X_T, is_training=True)
@@ -74,7 +78,7 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
 
             # For demonstration, replace this with actual values
             P_Y_given_X_re = torch.ones(batch_size, output_dim, T).to(device)
-
+            # print("CHECKER", X_T.shape, X_re.shape, Z_T_l.shape, Z_quantized.shape, I_T.shape, T, P_Y_given_X_re.shape)
             train_loss = loss_fn(X_T, X_re, Z_T_l, Z_quantized, I_T, T, P_Y_given_X_re, loss_path)
 
             # Back Propagation
@@ -97,13 +101,26 @@ def train_dvqvae_model(num_epochs=10, batch_size=32, sign_language_dim=512,
         'optimizer_state_dict': optimizer.state_dict(),
     }, model_path)
 
-    return train_loss_list, X_T, X_re, folder_dir
+    return train_loss_list, X_T.detach().cpu().numpy(), X_re.detach().cpu().numpy(), X_original_length, folder_dir
 
 def main():
-    loss_list, X_T, X_re, folder_dir = train_dvqvae_model(num_epochs=100, batch_size=5, codebook_size=64, sign_language_dim=150)
+    loss_list, X_T, X_re, X_original_length, folder_dir = train_dvqvae_model(num_epochs=50, batch_size=4, sign_language_dim=1659, T=100, latent_dim=512, 
+                                                          vocab_size=500, codebook_size=64,  output_dim=1659)
     loss_path = os.path.join(folder_dir, 'DVQVAE_loss.txt')
     save_path = os.path.join(folder_dir, 'DVQVAE_plot.png')
     plot_loss(loss_path, ["L_X_re", "L_vq", "L_budget", "L_total"], "DVQ-VAE Training Loss", save_path)
+    print("Complete training, Save as",save_path)
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    global_min = np.load(os.path.join(current_dir, "./constant/preproces_data_global_min.npy"))
+    global_max = np.load(os.path.join(current_dir, "./constant/preproces_data_global_max.npy"))
+
+    with open(os.path.join(folder_dir, 'X_re.skels'), "w") as f:
+        for X_T_i, X_re_i, X_original_length_i in zip(X_T, X_re, X_original_length):
+            print(X_T_i.shape, X_re_i.shape, X_original_length_i)
+            X_re_i_unpadded = X_re_i[0:X_original_length_i, : ]
+            X_unscaled_i = (X_re_i_unpadded + 1)*(global_max - global_min)/2 + global_min
+            f.write(' '.join(map(str, X_unscaled_i.flatten())) + '\n')
 
 if __name__ == "__main__":
     main()

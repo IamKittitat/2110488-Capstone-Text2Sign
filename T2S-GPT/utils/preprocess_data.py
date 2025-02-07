@@ -54,6 +54,9 @@ def batch_process(input_dir, reference_dir, output_file):
     
     # Compute global statistics
     global_min, global_max = compute_global_stats(all_scaled_skeletons)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    np.save(os.path.join(current_dir, "../constant/preproces_data_global_min.npy"), global_min)
+    np.save(os.path.join(current_dir, "../constant/preproces_data_global_max.npy"), global_max)
 
     with open(output_file, 'w') as f:
         for scaled_skeleton in all_scaled_skeletons:
