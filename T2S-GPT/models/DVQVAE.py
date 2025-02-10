@@ -34,10 +34,15 @@ class DVQVAE_Encoder(nn.Module):
         Arguments:
             x: Tensor, shape ``[batch_size, seq_len , sign_language_dim]``
         """
+        device = X_T.device
+        self.ema_cluster_size = self.ema_cluster_size.to(device)
+        self.ema_embeddings = self.ema_embeddings.to(device)
+        self.codebook.weight.data = self.codebook.weight.data.to(device)
+
         X_T_prime = self.positional_encoding(self.relu(self.layer_norm(self.embedding(X_T))))
         H_T = self.transformer_encoder(X_T_prime)
 
-        I_T = self.compute_information_weights(H_T) # Equation 3
+        I_T = self.compute_information_weights(H_T).to(device) # Equation 3
         Z_T_l, D_T_l, S_T = self.downsample(H_T, I_T)  # Equation 4 and 5
 
         Z_quantized, codebook_indices = self.quantize(Z_T_l, is_training)
@@ -51,13 +56,14 @@ class DVQVAE_Encoder(nn.Module):
         return I_T
 
     def downsample(self, H_T, I_T):
+        device = H_T.device
         S_T = torch.cumsum(I_T, dim=1)//self.threshold
         Z_T_l = []
         D_T_l = []
         batch_size, seq_length, latent_dim = H_T.size()
         for t in range(int(torch.max(S_T).item()) + 1):
-            Z_t = torch.zeros(batch_size, latent_dim)  # Initialize Z_t for the current segment
-            D_t = torch.zeros(batch_size)
+            Z_t = torch.zeros(batch_size, latent_dim, device=device)  # Initialize Z_t for the current segment
+            D_t = torch.zeros(batch_size, device=device)
             for j in range(seq_length):
                 F_j = (S_T[:,j] == t).int() # Equation 5 (condition on S_j)
                 Z_t += H_T[:,j] * I_T[:,j].unsqueeze(1) * F_j.unsqueeze(1)  # Accumulate the sum
@@ -65,19 +71,22 @@ class DVQVAE_Encoder(nn.Module):
             Z_T_l.append(Z_t)
             D_T_l.append(D_t)
 
-        Z_T_l = torch.stack(Z_T_l, dim=1)
-        D_T_l = torch.stack(D_T_l, dim=1).to(torch.int) 
+        Z_T_l = torch.stack(Z_T_l, dim=1).to(device)
+        D_T_l = torch.stack(D_T_l, dim=1).to(device).int() 
         return Z_T_l, D_T_l, S_T
 
     def quantize(self, z, is_training):
-        z_flattened = z.view(-1, z.size(-1))
+        device = z.device
+        z_flattened = z.view(-1, z.size(-1)).to(device)
+        self.ema_cluster_size = self.ema_cluster_size.to(device)
+        self.ema_embeddings = self.ema_embeddings.to(device)
         codebook_indices = torch.argmin(torch.cdist(z_flattened, self.codebook.weight), dim=-1).view((z.shape[0], z.shape[1]))
         z_q = self.codebook(codebook_indices).view(z.size())
 
         # EMA Update
         if is_training:
             print("EMA")
-            encoding_one_hot = torch.zeros(z_flattened.size(0), self.codebook_size, device=z.device)
+            encoding_one_hot = torch.zeros(z_flattened.size(0), self.codebook_size, device=device)
             encoding_one_hot.scatter_(1, codebook_indices.view(-1, 1), 1)
 
             self.ema_cluster_size = self.ema_decay * self.ema_cluster_size + (1 - self.ema_decay) * encoding_one_hot.sum(0)
