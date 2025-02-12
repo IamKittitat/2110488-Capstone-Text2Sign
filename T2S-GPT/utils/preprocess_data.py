@@ -42,7 +42,7 @@ def compute_global_stats(all_scaled_skeletons):
     print("Global Stats",global_min.shape, global_max.shape)
     return global_min, global_max
 
-def batch_process(input_dir, reference_dir, output_file):
+def batch_preprocess(input_dir, reference_dir, output_file):
     reference_skeleton = np.load(reference_dir)
     all_scaled_skeletons = []
     NUM_JOINT = reference_skeleton.shape[1]
@@ -70,9 +70,27 @@ def batch_process(input_dir, reference_dir, output_file):
             standardized_skeleton_str = ' '.join(map(str, standardized_skeleton.flatten()))
             f.write(standardized_skeleton_str + '\n')
 
+def batch_postprocess(input_dir):
+    NUM_JOINT = 553
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    global_min = np.load(os.path.join(current_dir, "../constant/preproces_data_global_min.npy"))
+    global_max = np.load(os.path.join(current_dir, "../constant/preproces_data_global_max.npy"))
+    # Preprocess: Norm > Scale
+    # Postprocess: Unscale 
 
-batch_process(
-    '/Users/iamkittitat/Desktop/2110488-Capstone-Text2Sign/T2S-GPT/data/raw_skeleton',
-    '/Users/iamkittitat/Desktop/2110488-Capstone-Text2Sign/T2S-GPT/data/raw_skeleton/01June_2010_Tuesday_tagesschau-5002-deblurred-with-BIN.npy',
-    '/Users/iamkittitat/Desktop/2110488-Capstone-Text2Sign/T2S-GPT/data/scaled_skeleton/dev.skels'
-)
+    output_file = os.path.join(current_dir, "../data/unscaled_skeleton/dev.skels")
+    with open(input_dir, "r", encoding="utf-8") as ip_file, open(output_file, "w", encoding="utf-8") as op_file:
+        for line in ip_file:
+            X_scaled = np.array(line.split(), dtype=float).reshape(-1, NUM_JOINT*3)
+            X_unscaled = (X_scaled + 1)*(global_max - global_min)/2 + global_min
+            print(X_unscaled.shape)
+            op_file.write(' '.join(map(str,X_unscaled.flatten())) + '\n')
+
+
+batch_postprocess('/Users/iamkittitat/Desktop/2110488-Capstone-Text2Sign/T2S-GPT/data/scaled_skeleton/dev.skels')
+
+# batch_preprocess(
+#     '/Users/iamkittitat/Desktop/2110488-Capstone-Text2Sign/T2S-GPT/data/raw_skeleton',
+#     '/Users/iamkittitat/Desktop/2110488-Capstone-Text2Sign/T2S-GPT/data/raw_skeleton/01June_2010_Tuesday_tagesschau-5002-deblurred-with-BIN.npy',
+#     '/Users/iamkittitat/Desktop/2110488-Capstone-Text2Sign/T2S-GPT/data/scaled_skeleton/dev.skels'
+# )
