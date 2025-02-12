@@ -79,7 +79,7 @@ def train_dvqvae_model(num_epochs=500, batch_size=32, sign_language_dim=512,
     
     # Run Optuna Hyperparameter Optimization**
     study = optuna.create_study(direction="minimize")
-    study.optimize(objective, n_trials=25)  # Run 10 trials to find best LR
+    study.optimize(objective, n_trials=10)
     best_lr = study.best_params['lr']
     best_beta1 = study.best_params['beta1']
     best_beta2 = study.best_params['beta2']
@@ -114,6 +114,9 @@ def train_dvqvae_model(num_epochs=500, batch_size=32, sign_language_dim=512,
 
             # Forward pass through DVQ-VAE
             Z_quantized, D_T_l, S_T, Z_T_l, I_T, codebook_indices, H_T = encoder(X_T, is_training=True)
+            if(epoch % 50 == 0):
+                print("Epoch:", epoch)
+                print(codebook_indices)
             X_re = decoder(Z_quantized, D_T_l, H_T)
 
             # For demonstration, replace this with actual values
