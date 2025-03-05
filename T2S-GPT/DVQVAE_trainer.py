@@ -25,8 +25,8 @@ def train_dvqvae_model(num_epochs=500, batch_size=32, sign_language_dim=512,
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
     ## SignLanguageDataset
-    skel_file = os.path.join(current_dir, 'data/scaled_skeleton/dev.skels')
-    text_file = os.path.join(current_dir, 'data/scaled_skeleton/dev.txt')
+    skel_file = os.path.join(current_dir, 'data/thsl_skeleton/train.skels')
+    text_file = os.path.join(current_dir, 'data/thsl_skeleton/train.txt')
 
     dataset = SignLanguageDataset(skel_file=skel_file, text_file=text_file, sign_language_dim = sign_language_dim, window_size=394)
     # TODO : FIX LATER TO HAVE VAL_LOADER
